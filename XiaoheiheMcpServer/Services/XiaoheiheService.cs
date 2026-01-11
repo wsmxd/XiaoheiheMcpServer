@@ -37,12 +37,12 @@ public class XiaoheiheService : IAsyncDisposable
         _browser = await _playwright.Chromium.LaunchAsync(new BrowserTypeLaunchOptions
         {
             Headless = _headless,
-            Args = new[]
-            {
+            Args =
+            [
                 "--no-sandbox",
                 "--disable-dev-shm-usage",
                 "--disable-blink-features=AutomationControlled"
-            }
+            ]
         });
 
         _context = await _browser.NewContextAsync(new BrowserNewContextOptions
@@ -117,13 +117,7 @@ public class XiaoheiheService : IAsyncDisposable
             await Task.Delay(2000);
 
             // 查找二维码元素
-            var qrCodeElement = await _page.QuerySelectorAsync("img[alt*='qr'], img[alt*='二维码'], canvas, [class*='qrcode'], [class*='qr-code']");
-            
-            if (qrCodeElement == null)
-            {
-                throw new Exception("未找到二维码元素");
-            }
-
+            var qrCodeElement = await _page.QuerySelectorAsync("img[alt*='qr'], img[alt*='二维码'], canvas, [class*='qrcode'], [class*='qr-code']") ?? throw new Exception("未找到二维码元素");
             string qrCodeBase64;
             var src = await qrCodeElement.GetAttributeAsync("src");
             
@@ -278,10 +272,10 @@ public class XiaoheiheService : IAsyncDisposable
             _logger.LogError(ex, "发布评论失败");
             return new McpToolResult
             {
-                Content = new List<McpContent>
-                {
+                Content =
+                [
                     new() { Type = "text", Text = $"❌ 发布评论失败: {ex.Message}" }
-                },
+                ],
                 IsError = true
             };
         }
@@ -324,13 +318,13 @@ public class XiaoheiheService : IAsyncDisposable
                 catch { continue; }
             }
 
-            var resultText = results.Any()
+            var resultText = results.Count != 0
                 ? $"找到 {results.Count} 条结果:\n\n{string.Join("\n\n", results)}"
                 : "未找到相关内容";
 
             return new McpToolResult
             {
-                Content = new List<McpContent> { new() { Type = "text", Text = resultText } }
+                Content = [new() { Type = "text", Text = resultText }]
             };
         }
         catch (Exception ex)
@@ -372,7 +366,7 @@ public class XiaoheiheService : IAsyncDisposable
 
             return new McpToolResult
             {
-                Content = new List<McpContent> { new() { Type = "text", Text = detailText } }
+                Content = [new() { Type = "text", Text = detailText }]
             };
         }
         catch (Exception ex)
