@@ -29,54 +29,184 @@ public class PublishService : BrowserBase
             await _page.WaitForLoadStateAsync(LoadState.NetworkIdle);
             await Task.Delay(2000);
 
-            // 填写标题
-            var titleSelector = "input[placeholder*='标题'], [class*='title'] input, input[name*='title']";
-            await _page.WaitForSelectorAsync(titleSelector, new() { Timeout = 10000 });
-            await _page.FillAsync(titleSelector, args.Title);
-            await Task.Delay(500);
-
-            // 填写内容
-            var contentSelector = "textarea[placeholder*='内容'], [contenteditable='true'], div[class*='editor'], div[class*='content']";
-            var contentText = args.Content;
-            
-            if (args.Tags.Any())
-            {
-                contentText += "\n" + string.Join(" ", args.Tags.Select(t => $"#{t}"));
-            }
-            
-            // 尝试填充内容（支持多种编辑器类型）
-            try
-            {
-                await _page.FillAsync(contentSelector, contentText);
-            }
-            catch
-            {
-                // 如果是 contenteditable 元素，使用点击+输入的方式
-                await _page.ClickAsync(contentSelector);
-                await _page.Keyboard.TypeAsync(contentText);
-            }
-            await Task.Delay(500);
-
-            // 上传图片
+            // 1. 上传图片 - 点击 editor-image-wrapper__box upload 区域
             if (args.Images.Any())
             {
-                await UploadImagesAsync(args.Images.ToArray());
+                _logger.LogInformation("上传封面图片...");
+                var validImages = args.Images.Where(File.Exists).ToArray();
+                if (validImages.Any())
+                {
+                    try
+                    {
+                        // 先查找隐藏的文件输入框
+                        var fileInput = await _page.QuerySelectorAsync("input[type='file']");
+                        
+                        if (fileInput != null)
+                        {
+                            _logger.LogInformation("直接找到文件输入框，准备上传...");
+                            await fileInput.SetInputFilesAsync(validImages);
+                            await Task.Delay(2000 + (1000 * validImages.Length));
+                            _logger.LogInformation($"已上传 {validImages.Length} 张图片");
+                        }
+                        else
+                        {
+                            // 如果没找到，点击上传图片区域触发
+                            _logger.LogInformation("未找到文件输入框，尝试点击上传区域...");
+                            var uploadBox = await _page.QuerySelectorAsync(".editor-image-wrapper__box.upload");
+                            
+                            if (uploadBox != null)
+                            {
+                                _logger.LogInformation("找到图片上传区域，点击触发文件选择器...");
+                                
+                                // 使用 RunAndWaitForFileChooserAsync 来处理文件选择
+                                var fileChooser = await _page.RunAndWaitForFileChooserAsync(async () =>
+                                {
+                                    await uploadBox.ClickAsync();
+                                });
+                                
+                                if (fileChooser != null)
+                                {
+                                    _logger.LogInformation($"文件选择器已打开，设置文件: {string.Join(", ", validImages)}");
+                                    await fileChooser.SetFilesAsync(validImages);
+                                    await Task.Delay(2000 + (1000 * validImages.Length));
+                                    _logger.LogInformation($"已上传 {validImages.Length} 张图片");
+                                }
+                                else
+                                {
+                                    _logger.LogWarning("点击后未能获取文件选择器");
+                                }
+                            }
+                            else
+                            {
+                                _logger.LogWarning("未找到图片上传区域 .editor-image-wrapper__box.upload");
+                            }
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.LogError(ex, "上传图片失败");
+                    }
+                }
             }
 
-            // 点击发布按钮
-            var publishSelector = "button[class*='publish'], button:has-text('发布')";
-            await _page.WaitForSelectorAsync(publishSelector);
-            await _page.ClickAsync(publishSelector);
-            await Task.Delay(3000);
+            // 2. 填写标题 - 找到标题输入框并点击输入
+            _logger.LogInformation("开始填写标题...");
+            try
+            {
+                // 找到所有 ProseMirror 编辑器
+                var proseMirrors = await _page.QuerySelectorAllAsync(".ProseMirror");
+                if (proseMirrors.Count > 0)
+                {
+                    // 第一个 ProseMirror 是标题
+                    var titleInput = proseMirrors[0];
+                    _logger.LogInformation("找到标题输入框，点击聚焦...");
+                    
+                    // 点击聚焦
+                    await titleInput.ClickAsync();
+                    await Task.Delay(300);
+                    
+                    // 全选并删除原有内容
+                    await _page.Keyboard.PressAsync("Control+A");
+                    await Task.Delay(100);
+                    await _page.Keyboard.PressAsync("Delete");
+                    await Task.Delay(300);
+                    
+                    // 输入标题
+                    await _page.Keyboard.TypeAsync(args.Title);
+                    await Task.Delay(500);
+                    _logger.LogInformation("标题已填写");
+                }
+                else
+                {
+                    _logger.LogWarning("未找到标题输入框 .ProseMirror");
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "填写标题失败");
+            }
 
+            // 3. 填写正文 - 找到正文输入框并点击输入
+            _logger.LogInformation("开始填写正文...");
+            try
+            {
+                // 找到所有 ProseMirror 编辑器，第二个是正文
+                var proseMirrors = await _page.QuerySelectorAllAsync(".ProseMirror");
+                if (proseMirrors.Count > 1)
+                {
+                    // 第二个 ProseMirror 是正文
+                    var contentInput = proseMirrors[1];
+                    _logger.LogInformation("找到正文输入框，点击聚焦...");
+                    
+                    // 点击聚焦
+                    await contentInput.ClickAsync();
+                    await Task.Delay(300);
+                    
+                    // 全选并删除原有内容
+                    await _page.Keyboard.PressAsync("Control+A");
+                    await Task.Delay(100);
+                    await _page.Keyboard.PressAsync("Delete");
+                    await Task.Delay(300);
+                    
+                    // 组合正文内容和标签
+                    var fullContent = args.Content;
+                    if (args.Tags.Any())
+                    {
+                        fullContent += "\n\n" + string.Join(" ", args.Tags.Select(t => $"#{t}"));
+                    }
+                    
+                    // 输入正文
+                    await _page.Keyboard.TypeAsync(fullContent);
+                    await Task.Delay(1000);
+                    _logger.LogInformation("正文已填写");
+                }
+                else
+                {
+                    _logger.LogWarning("未找到第二个正文输入框 .ProseMirror");
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "填写正文失败");
+            }
+
+            // 4. 查找并点击发布按钮
+            var publishSelectors = new[]
+            {
+                "button:has-text('发布')",
+                "div[role='button']:has-text('发布')",
+                "[class*='publish']",
+                "[class*='submit']"
+            };
+
+            bool published = false;
+            foreach (var selector in publishSelectors)
+            {
+                try
+                {
+                    var publishBtn = await _page.QuerySelectorAsync(selector);
+                    if (publishBtn != null && await publishBtn.IsVisibleAsync())
+                    {
+                        _logger.LogInformation($"找到发布按钮: {selector}");
+                        await publishBtn.ClickAsync();
+                        published = true;
+                        break;
+                    }
+                }
+                catch { }
+            }
+
+            await Task.Delay(3000);
             await SaveCookiesAsync();
 
-            _logger.LogInformation("内容发布成功");
+            _logger.LogInformation("内容发布操作完成");
             return new McpToolResult
             {
                 Content =
                 [
-                    new() { Type = "text", Text = $"✅ 发布成功！\n标题: {args.Title}\n内容已发布到小黑盒" }
+                    new() { Type = "text", Text = published 
+                        ? $"✅ 发布成功！\n标题: {args.Title}\n内容已发布到小黑盒" 
+                        : $"⚠️ 内容已填写，但未能自动点击发布按钮，请手动检查并发布\n标题: {args.Title}" }
                 ]
             };
         }
@@ -87,7 +217,7 @@ public class PublishService : BrowserBase
             {
                 Content =
                 [
-                    new() { Type = "text", Text = $"❌ 发布失败: {ex.Message}" }
+                    new() { Type = "text", Text = $"❌ 发布失败: {ex.Message}\n\n建议：\n1. 确保已登录\n2. 检查图片文件路径是否正确\n3. 尝试手动访问发布页面确认页面结构" }
                 ],
                 IsError = true
             };
