@@ -4,12 +4,28 @@
 
 **基于最新的 MCP C# SDK (ModelContextProtocol)** - 使用依赖注入和特性（Attribute）方式注册工具。
 
+## ⚠️ 开发状态
+
+**本项目目前处于开发中**，部分功能尚未完全验证：
+- ✅ 检查登录状态 - 已实现并测试
+- ⚠️ 二维码登录 - 已实现但未验证
+- ⚠️ 交互式登录 - 已实现但未验证
+- ✅ 发布图文内容 - 已实现（包括图片、社区、话题）
+- ⚠️ 发布文章 - 已实现但未验证
+- ⚠️ 发布视频 - 已实现但未验证
+- ⚠️ 发布评论 - 未验证
+- ✅ 搜索内容 - 已实现并测试
+- ✅ 获取帖子详情 - 已实现并测试
+
 ## 功能特性
 
 - ✅ 检查登录状态
-- ✅ 二维码登录
-- ✅ 发布图文内容
-- ✅ 发布评论
+- ⚠️ 二维码登录（待验证）
+- ⚠️ 交互式登录（待验证）
+- ✅ 发布图文内容（支持图片、社区、话题）
+- ⚠️ 发布文章（待验证）
+- ⚠️ 发布视频（待验证）
+- ⚠️ 发布评论
 - ✅ 搜索内容
 - ✅ 获取帖子详情
 
@@ -26,7 +42,7 @@
 ### 1. 克隆仓库
 
 ```bash
-git clone <your-repo>
+git clone https://github.com/wsmxd/XiaoheiheMcpServer.git
 cd XiaoheiheMcpServer
 ```
 
@@ -80,7 +96,7 @@ dotnet run -- --no-headless
       "args": [
         "run",
         "--project",
-        "D:/vs/.NETWithAI/XiaoheiheMcpServer/XiaoheiheMcpServer/XiaoheiheMcpServer.csproj"
+        "<你的项目路径>/XiaoheiheMcpServer/XiaoheiheMcpServer.csproj"
       ],
       "env": {}
     }
@@ -88,7 +104,11 @@ dotnet run -- --no-headless
 }
 ```
 
-**注意**：请将路径替换为你的实际项目路径。
+**注意**：请将 `<你的项目路径>` 替换为你的实际项目路径。
+
+示例：
+- Windows: `"D:/Projects/XiaoheiheMcpServer/XiaoheiheMcpServer.csproj"`
+- macOS/Linux: `"/home/user/XiaoheiheMcpServer/XiaoheiheMcpServer.csproj"`
 
 重启 Claude Desktop 后，服务器将自动启动。
 
@@ -113,7 +133,7 @@ dotnet run --project <项目路径>/XiaoheiheMcpServer.csproj
       "args": [
         "run",
         "--project",
-        "D:\\vs\\.NETWithAI\\XiaoheiheMcpServer\\XiaoheiheMcpServer"
+        "<你的项目路径>/XiaoheiheMcpServer/XiaoheiheMcpServer.csproj"
       ]
     }
   }
@@ -129,7 +149,7 @@ dotnet run --project <项目路径>/XiaoheiheMcpServer.csproj
       "args": [
         "run",
         "--project",
-        "D:\\vs\\.NETWithAI\\XiaoheiheMcpServer\\XiaoheiheMcpServer"
+        "<你的项目路径>/XiaoheiheMcpServer/XiaoheiheMcpServer.csproj"
       ]
     }
   }
@@ -142,37 +162,75 @@ dotnet run --project <项目路径>/XiaoheiheMcpServer.csproj
 检查小黑盒登录状态
 - 参数：无
 - 返回：登录状态和用户名
+- 状态：✅ 已验证
 
-### 2. get_login_qrcode
+### 2. interactive_login
+交互式登录（打开浏览器手动登录）
+- 参数：无
+- 返回：登录结果
+- 状态：⚠️ 待验证
+
+### 3. get_login_qrcode
 获取登录二维码
 - 参数：无
 - 返回：二维码图片（Base64）和过期时间
+- 状态：⚠️ 待验证
 
-### 3. publish_content
+### 4. publish_content
 发布图文内容到小黑盒
 - 参数：
   - `title`: 标题（必需）
   - `content`: 内容（必需）
   - `images`: 图片路径列表（可选，本地绝对路径）
-  - `tags`: 标签列表（可选）
+  - `communities`: 社区名称列表（可选，必须是已有的社区）
+  - `tags`: 话题标签列表（可选）
+- 状态：✅ 已实现（图片、社区、话题功能已添加）
 
-### 4. search_content
-搜索小黑盒内容
+### 5. publish_article
+发布文章到小黑盒（长文章形式）
 - 参数：
-  - `keyword`: 搜索关键词（必需）
-  - `page`: 页码（可选，默认 1）
-  - `pageSize`: 每页数量（可选，默认 20）
+  - `title`: 标题（必需）
+  - `content`: 内容（必需）
+  - `images`: 图片路径列表（可选）
+  - `tags`: 标签列表（可选）
+- 状态：⚠️ 待验证
 
-### 5. get_post_detail
+### 6. publish_video
+发布视频到小黑盒
+- 参数：
+  - `videoPath`: 视频文件路径（必需）
+  - `title`: 标题（必需）
+  - `description`: 描述（必需）
+  - `coverImagePath`: 封面图片路径（可选）
+  - `tags`: 标签列表（可选）
+- 状态：⚠️ 待验证
+
+### 7. search_content
+搜索小黑盒内容
+社区：原神方舟
+话题：原神,游戏评测
+```
+
+```
+搜索小黑盒上关于"原神"的内容
+```
+
+```
+获取帖子 123456 的详细信息
+
+### 8. get_post_detail
 获取帖子详情
 - 参数：
   - `postId`: 帖子ID（必需）
+- 返回：封面图、标题、正文、标签、评论等详细信息
+- 状态：✅ 已验证
 
-### 6. post_comment
+### 9. post_comment
 发表评论
 - 参数：
   - `postId`: 帖子ID（必需）
   - `content`: 评论内容（必需）
+- 状态：⚠️ 未验证
 
 ## 使用示例
 
