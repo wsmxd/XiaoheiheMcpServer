@@ -104,6 +104,64 @@ file class XiaoheiheMcpTools
     }
 
     /// <summary>
+    /// 发布文章到小黑盒（长文章形式）
+    /// </summary>
+    [McpServerTool(Name = "publish_article")]
+    [Description("发布文章到小黑盒（适合长文章）")]
+    public static async Task<string> PublishArticle(
+        XiaoheiheService service,
+        ILogger<XiaoheiheMcpTools> logger,
+        [Description("文章标题")] string title,
+        [Description("文章正文")] string content,
+        [Description("图片路径列表（本地绝对路径）")] string[]? images = null,
+        [Description("标签列表")] string[]? tags = null)
+    {
+        logger.LogInformation("执行工具: publish_article");
+        
+        var args = new PublishArticleArgs
+        {
+            Title = title,
+            Content = content,
+            Images = images?.ToList() ?? [],
+            Tags = tags?.ToList() ?? []
+        };
+        
+        var result = await service.PublishArticleAsync(args);
+        
+        return string.Join("\n", result.Content.Select(c => c.Text));
+    }
+
+    /// <summary>
+    /// 发布视频到小黑盒
+    /// </summary>
+    [McpServerTool(Name = "publish_video")]
+    [Description("发布视频到小黑盒")]
+    public static async Task<string> PublishVideo(
+        XiaoheiheService service,
+        ILogger<XiaoheiheMcpTools> logger,
+        [Description("视频标题")] string title,
+        [Description("视频描述")] string description,
+        [Description("视频文件路径（本地绝对路径）")] string videoPath,
+        [Description("封面图路径（可选，本地绝对路径）")] string? coverImagePath = null,
+        [Description("标签列表（可选）")] string[]? tags = null)
+    {
+        logger.LogInformation("执行工具: publish_video");
+        
+        var args = new PublishVideoArgs
+        {
+            Title = title,
+            Description = description,
+            VideoPath = videoPath,
+            CoverImagePath = coverImagePath,
+            Tags = tags?.ToList() ?? []
+        };
+        
+        var result = await service.PublishVideoAsync(args);
+        
+        return string.Join("\n", result.Content.Select(c => c.Text));
+    }
+
+    /// <summary>
     /// 搜索小黑盒内容
     /// </summary>
     [McpServerTool(Name = "search_content")]

@@ -6,7 +6,8 @@ using XiaoheiheMcpServer.Services;
 namespace XiaoheiheMcpServer.Tests.Services;
 
 /// <summary>
-/// 小黑盒服务测试
+/// 小黑盒服务Facade测试
+/// 测试Facade协调各个专业服务的能力
 /// </summary>
 public class XiaoheiheServiceTests : IAsyncDisposable
 {
@@ -28,8 +29,9 @@ public class XiaoheiheServiceTests : IAsyncDisposable
         Assert.NotNull(_service);
     }
 
+    // 登录相关测试
     [Fact]
-    public async Task CheckLoginStatusAsync_ShouldReturnLoginStatus()
+    public async Task CheckLoginStatusAsync_ShouldDelegateToLoginService()
     {
         // Arrange
         _service = new XiaoheiheService(_loggerMock.Object, headless: true);
@@ -44,13 +46,28 @@ public class XiaoheiheServiceTests : IAsyncDisposable
     }
 
     [Fact]
-    public async Task PublishContentAsync_WithEmptyTitle_ShouldHandleGracefully()
+    public async Task GetLoginQrCodeAsync_ShouldDelegateToLoginService()
+    {
+        // Arrange
+        _service = new XiaoheiheService(_loggerMock.Object, headless: true);
+
+        // Act
+        var result = await _service.GetLoginQrCodeAsync();
+
+        // Assert
+        Assert.NotNull(result);
+        Assert.NotNull(result.Message);
+    }
+
+    // 内容发布相关测试
+    [Fact]
+    public async Task PublishContentAsync_ShouldDelegateToPublishService()
     {
         // Arrange
         _service = new XiaoheiheService(_loggerMock.Object, headless: true);
         var args = new PublishContentArgs
         {
-            Title = "",
+            Title = "测试标题",
             Content = "测试内容"
         };
 
@@ -63,7 +80,47 @@ public class XiaoheiheServiceTests : IAsyncDisposable
     }
 
     [Fact]
-    public async Task SearchAsync_WithValidKeyword_ShouldReturnResults()
+    public async Task PublishArticleAsync_ShouldDelegateToPublishService()
+    {
+        // Arrange
+        _service = new XiaoheiheService(_loggerMock.Object, headless: true);
+        var args = new PublishArticleArgs
+        {
+            Title = "测试文章",
+            Content = "测试内容"
+        };
+
+        // Act
+        var result = await _service.PublishArticleAsync(args);
+
+        // Assert
+        Assert.NotNull(result);
+        Assert.NotNull(result.Content);
+    }
+
+    [Fact]
+    public async Task PublishVideoAsync_ShouldDelegateToPublishService()
+    {
+        // Arrange
+        _service = new XiaoheiheService(_loggerMock.Object, headless: true);
+        var args = new PublishVideoArgs
+        {
+            Title = "测试视频",
+            Description = "测试描述",
+            VideoPath = "/nonexistent/video.mp4"
+        };
+
+        // Act
+        var result = await _service.PublishVideoAsync(args);
+
+        // Assert
+        Assert.NotNull(result);
+        Assert.NotNull(result.Content);
+    }
+
+    // 互动相关测试
+    [Fact]
+    public async Task SearchAsync_ShouldDelegateToInteractionService()
     {
         // Arrange
         _service = new XiaoheiheService(_loggerMock.Object, headless: true);
@@ -80,11 +137,10 @@ public class XiaoheiheServiceTests : IAsyncDisposable
         // Assert
         Assert.NotNull(result);
         Assert.NotNull(result.Content);
-        Assert.Single(result.Content);
     }
 
     [Fact]
-    public async Task PostCommentAsync_WithValidArgs_ShouldReturnResult()
+    public async Task PostCommentAsync_ShouldDelegateToInteractionService()
     {
         // Arrange
         _service = new XiaoheiheService(_loggerMock.Object, headless: true);

@@ -32,6 +32,29 @@ public class PublishContentArgs
 }
 
 /// <summary>
+/// 发布文章参数（长文章，与图文不同）
+/// </summary>
+public class PublishArticleArgs
+{
+    public string Title { get; set; } = string.Empty;
+    public string Content { get; set; } = string.Empty;
+    public List<string> Images { get; set; } = new();
+    public List<string> Tags { get; set; } = new();
+}
+
+/// <summary>
+/// 发布视频参数
+/// </summary>
+public class PublishVideoArgs
+{
+    public string Title { get; set; } = string.Empty;
+    public string Description { get; set; } = string.Empty;
+    public string VideoPath { get; set; } = string.Empty;
+    public string? CoverImagePath { get; set; }
+    public List<string> Tags { get; set; } = new();
+}
+
+/// <summary>
 /// 评论参数
 /// </summary>
 public class CommentArgs
