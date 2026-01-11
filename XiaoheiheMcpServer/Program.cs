@@ -94,8 +94,8 @@ file class XiaoheiheMcpTools
         {
             Title = title,
             Content = content,
-            Images = images?.ToList() ?? new List<string>(),
-            Tags = tags?.ToList() ?? new List<string>()
+            Images = images?.ToList() ?? [],
+            Tags = tags?.ToList() ?? []
         };
         
         var result = await service.PublishContentAsync(args);
