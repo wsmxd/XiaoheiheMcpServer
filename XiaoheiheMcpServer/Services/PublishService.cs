@@ -269,10 +269,10 @@ public class PublishService : BrowserBase
             // 6. 查找并点击发布按钮
             var publishSelectors = new[]
             {
+                ".editor-publish__btn.main-btn",
+                "button.editor-publish__btn",
                 "button:has-text('发布')",
-                "div[role='button']:has-text('发布')",
-                "[class*='publish']",
-                "[class*='submit']"
+                "div[role='button']:has-text('发布')"
             };
 
             bool published = false;
