@@ -24,7 +24,7 @@ public class InteractionService : BrowserBase
             _logger.LogInformation($"发布评论到帖子: {args.PostId}");
             await InitializeBrowserAsync();
 
-            await _page!.GotoAsync($"{BaseUrl}/post/{args.PostId}");
+            await _page!.GotoAsync($"{BaseUrl}/app/bbs/link/{args.PostId}");
             await _page.WaitForLoadStateAsync(LoadState.NetworkIdle);
             await Task.Delay(2000);
 
@@ -72,7 +72,7 @@ public class InteractionService : BrowserBase
             _logger.LogInformation($"搜索关键词: {args.Keyword}");
             await InitializeBrowserAsync();
 
-            await _page!.GotoAsync($"{BaseUrl}/search?q={Uri.EscapeDataString(args.Keyword)}");
+            await _page!.GotoAsync($"{BaseUrl}/app/search?q={Uri.EscapeDataString(args.Keyword)}");
             await _page.WaitForLoadStateAsync(LoadState.NetworkIdle);
             await Task.Delay(2000);
 
@@ -129,7 +129,7 @@ public class InteractionService : BrowserBase
             _logger.LogInformation($"获取帖子详情: {args.PostId}");
             await InitializeBrowserAsync();
 
-            await _page!.GotoAsync($"{BaseUrl}/post/{args.PostId}");
+            await _page!.GotoAsync($"{BaseUrl}/app/bbs/link/{args.PostId}");
             await _page.WaitForLoadStateAsync(LoadState.NetworkIdle);
             await Task.Delay(2000);
 
