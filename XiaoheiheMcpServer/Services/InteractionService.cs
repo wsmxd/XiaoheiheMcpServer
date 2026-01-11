@@ -72,7 +72,7 @@ public class InteractionService : BrowserBase
             _logger.LogInformation($"搜索关键词: {args.Keyword}");
             await InitializeBrowserAsync();
 
-            await _page!.GotoAsync($"{BaseUrl}/search?keyword={Uri.EscapeDataString(args.Keyword)}");
+            await _page!.GotoAsync($"{BaseUrl}/search?q={Uri.EscapeDataString(args.Keyword)}");
             await _page.WaitForLoadStateAsync(LoadState.NetworkIdle);
             await Task.Delay(2000);
 
