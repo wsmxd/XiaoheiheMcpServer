@@ -75,15 +75,8 @@ public class LoginService : BrowserBase
         {
             _logger.LogInformation("启动交互式登录，等待用户手动登录...");
             
-            // 确保使用有头模式
-            if (_headless)
-            {
-                _logger.LogWarning("交互式登录需要有头模式，正在重新初始化...");
-                // 释放现有浏览器
-                if (_browser != null) await _browser.CloseAsync();
-                _browser = null;
-            }
-
+            // 注意：浏览器模式（headless/headed）在首次初始化时已确定
+            // 这里直接初始化即可，模式由构造函数参数控制
             await InitializeBrowserAsync();
 
             // 访问登录页面
