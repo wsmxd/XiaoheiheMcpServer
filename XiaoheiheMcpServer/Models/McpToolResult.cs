@@ -5,7 +5,7 @@ namespace XiaoheiheMcpServer.Models;
 /// </summary>
 public class McpToolResult
 {
-    public List<McpContent> Content { get; set; } = new();
+    public List<McpContent> Content { get; set; } = [];
     public bool IsError { get; set; }
 }
 

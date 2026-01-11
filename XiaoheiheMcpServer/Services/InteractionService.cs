@@ -121,7 +121,7 @@ public class InteractionService : BrowserBase
                     {
                         PostId = postId,
                         Title = (title ?? "").Trim(),
-                        Link = href,
+                        Link = postId, // 只保存帖子ID
                         CommentCount = commentCount,
                         LikeCount = likeCount,
                         ImageUrls = imageUrls
@@ -142,7 +142,7 @@ public class InteractionService : BrowserBase
                     $"📌 **{r.Title}**\n" +
                     $"📝 评论: {r.CommentCount} | 👍 点赞: {r.LikeCount}\n" +
                     (r.ImageUrls.Count > 0 ? $"🖼️ 图片: {r.ImageUrls.Count} 张\n" : "") +
-                    $"🔗 {r.Link}"))
+                    $"🔗 帖子ID: {r.Link}"))
                 : "未找到相关内容";
 
             return new McpToolResult
