@@ -24,30 +24,34 @@ public class LoginService : BrowserBase
             _logger.LogInformation("检查登录状态...");
             await InitializeBrowserAsync();
             
-            await _page!.GotoAsync(BaseUrl);
+            // 访问首页
+            const string checkUrl = "https://www.xiaoheihe.cn/app/bbs/home";
+            _logger.LogInformation("访问首页: {Url}", checkUrl);
+            await _page!.GotoAsync(checkUrl);
             await _page.WaitForLoadStateAsync(LoadState.NetworkIdle);
+            await Task.Delay(1000);
 
-            // 检查是否有用户头像或用户信息元素
-            var userElement = await _page.QuerySelectorAsync("[class*='user'], [class*='avatar'], [class*='login-user']");
-            var isLoggedIn = userElement != null;
-
-            if (isLoggedIn)
+            // 查找用户信息元素 p.user-box__username
+            var userElement = await _page.QuerySelectorAsync("p.user-box__username");
+            
+            if (userElement != null)
             {
-                var username = await userElement!.TextContentAsync() ?? "xiaoheihe-user";
-                _logger.LogInformation($"已登录: {username}");
+                var username = await userElement.TextContentAsync();
+                username = (username ?? "xiaoheihe-user").Trim();
+                _logger.LogInformation("已登录，用户: {Username}", username);
                 return new LoginStatus
                 {
                     IsLoggedIn = true,
-                    Username = username.Trim(),
+                    Username = username,
                     Message = "已登录"
                 };
             }
 
-            _logger.LogInformation("未登录");
+            _logger.LogInformation("未找到用户信息，判断为未登录");
             return new LoginStatus
             {
                 IsLoggedIn = false,
-                Message = "未登录，请使用二维码登录"
+                Message = "未登录，请使用 interactive_login 工具进行登录"
             };
         }
         catch (Exception ex)
@@ -62,70 +66,158 @@ public class LoginService : BrowserBase
     }
 
     /// <summary>
-    /// 获取登录二维码
+    /// 交互式登录 - 打开有头浏览器让用户手动登录
+    /// </summary>
+    /// <param name="waitTimeoutSeconds">等待用户登录的超时时间（秒），默认300秒（5分钟）</param>
+    public async Task<LoginStatus> InteractiveLoginAsync(int waitTimeoutSeconds = 300)
+    {
+        try
+        {
+            _logger.LogInformation("启动交互式登录，等待用户手动登录...");
+            
+            // 确保使用有头模式
+            if (_headless)
+            {
+                _logger.LogWarning("交互式登录需要有头模式，正在重新初始化...");
+                // 释放现有浏览器
+                if (_browser != null) await _browser.CloseAsync();
+                _browser = null;
+            }
+
+            await InitializeBrowserAsync();
+
+            // 访问登录页面
+            var loginUrl = "https://login.xiaoheihe.cn/?origin=heybox&redirect_url=https%3A%2F%2Fwww.xiaoheihe.cn%2Fhome";
+            _logger.LogInformation("打开登录页面: {Url}", loginUrl);
+            await _page!.GotoAsync(loginUrl);
+            await _page.WaitForLoadStateAsync(LoadState.NetworkIdle);
+
+            _logger.LogInformation("请在浏览器中完成登录操作（手机验证码、密码或扫码均可）");
+            _logger.LogInformation("等待最多 {Timeout} 秒...", waitTimeoutSeconds);
+
+            // 等待登录成功（通过URL跳转或特定元素出现判断）
+            try
+            {
+                await _page.WaitForFunctionAsync(
+                    @"() => {
+                        // 检查是否跳转到首页
+                        if (window.location.href.includes('xiaoheihe.cn/home') || 
+                            window.location.href.includes('xiaoheihe.cn') && !window.location.href.includes('login')) {
+                            return true;
+                        }
+                        // 或者检查是否出现用户信息元素
+                        const userElement = document.querySelector('[class*=""user""], [class*=""avatar""]');
+                        return !!userElement;
+                    }",
+                    new PageWaitForFunctionOptions { Timeout = waitTimeoutSeconds * 1000 }
+                );
+
+                _logger.LogInformation("检测到登录成功！");
+                
+                // 保存 Cookie
+                await SaveCookiesAsync();
+                
+                // 获取用户信息
+                await Task.Delay(2000); // 等待页面稳定
+                var username = await _page.EvaluateAsync<string>(
+                    @"() => {
+                        const userElement = document.querySelector('[class*=""user""], [class*=""avatar""], [class*=""username""]');
+                        return userElement?.textContent?.trim() || 'xiaoheihe-user';
+                    }"
+                );
+
+                return new LoginStatus
+                {
+                    IsLoggedIn = true,
+                    Username = username,
+                    Message = "登录成功！Cookie 已保存，后续操作将自动使用此登录状态"
+                };
+            }
+            catch (TimeoutException)
+            {
+                _logger.LogWarning("等待登录超时");
+                return new LoginStatus
+                {
+                    IsLoggedIn = false,
+                    Message = $"登录超时（{waitTimeoutSeconds}秒内未完成登录）"
+                };
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "交互式登录失败");
+            return new LoginStatus
+            {
+                IsLoggedIn = false,
+                Message = $"交互式登录失败: {ex.Message}"
+            };
+        }
+    }
+
+    /// <summary>
+    /// 获取登录二维码（备用方案）
     /// </summary>
     public async Task<QrCodeInfo> GetLoginQrCodeAsync()
     {
         try
         {
-            _logger.LogInformation("获取登录二维码...");
+            _logger.LogInformation("获取登录二维码（备用方案，推荐使用 interactive_login）...");
             await InitializeBrowserAsync();
 
-            // 1. 访问首页
-            await _page!.GotoAsync(BaseUrl);
+            // 直接访问登录页面
+            var loginUrl = "https://login.xiaoheihe.cn/?origin=heybox&redirect_url=https%3A%2F%2Fwww.xiaoheihe.cn%2Fhome";
+            _logger.LogInformation("访问登录页面: {Url}", loginUrl);
+            await _page!.GotoAsync(loginUrl);
             await _page.WaitForLoadStateAsync(LoadState.NetworkIdle);
-            await Task.Delay(1000);
+            await Task.Delay(2000);
 
-            // 2. 查找并点击登录按钮
-            _logger.LogInformation("查找登录按钮...");
-            var loginButtonSelectors = new[]
+            // 查找并点击右上角的二维码图标切换到扫码登录
+            _logger.LogInformation("查找二维码切换按钮...");
+            var qrSwitchSelectors = new[]
             {
-                "button:has-text('登录')",
-                "a:has-text('登录')",
-                "[class*='login-btn']",
-                "[class*='login']",
-                "button.login",
-                "a.login"
+                "[class*='qrcode'], [class*='qr-code'], [title*='二维码'], [aria-label*='二维码']",
+                "svg, i, span, button, a" // 可能是图标
             };
 
-            IElementHandle? loginButton = null;
-            foreach (var selector in loginButtonSelectors)
+            IElementHandle? qrSwitch = null;
+            foreach (var selector in qrSwitchSelectors)
             {
                 try
                 {
-                    loginButton = await _page.QuerySelectorAsync(selector);
-                    if (loginButton != null && await loginButton.IsVisibleAsync())
+                    var elements = await _page.QuerySelectorAllAsync(selector);
+                    foreach (var element in elements)
                     {
-                        _logger.LogInformation($"找到登录按钮，使用选择器: {selector}");
-                        break;
+                        if (await element.IsVisibleAsync())
+                        {
+                            var html = await element.EvaluateAsync<string>("el => el.outerHTML");
+                            if (html.Contains("qr") || html.Contains("二维码"))
+                            {
+                                qrSwitch = element;
+                                _logger.LogInformation("找到二维码切换按钮");
+                                break;
+                            }
+                        }
                     }
+                    if (qrSwitch != null) break;
                 }
                 catch { }
             }
 
-            if (loginButton == null)
+            if (qrSwitch != null)
             {
-                throw new Exception("未找到登录按钮");
+                _logger.LogInformation("点击二维码切换按钮...");
+                await qrSwitch.ClickAsync();
+                await Task.Delay(2000);
             }
 
-            // 3. 点击登录按钮，弹出登录对话框
-            _logger.LogInformation("点击登录按钮...");
-            await loginButton.ClickAsync();
-            await Task.Delay(2000); // 等待对话框弹出
-
-            // 4. 在弹出的对话框中查找二维码
-            _logger.LogInformation("在登录对话框中查找二维码...");
+            // 查找二维码图片
+            _logger.LogInformation("查找二维码图片...");
             var qrCodeSelectors = new[]
             {
-                "img[alt*='qr']",
-                "img[alt*='二维码']",
+                "img[alt*='qr'], img[alt*='二维码']",
                 "canvas",
-                "[class*='qrcode'] img",
-                "[class*='qr-code'] img",
-                "[class*='qrcode'] canvas",
-                "[class*='qr-code'] canvas",
-                "img[src*='qrcode']",
-                "img[src*='qr']"
+                "[class*='qrcode'] img, [class*='qr-code'] img",
+                "img[src*='qrcode'], img[src*='qr']"
             };
 
             IElementHandle? qrCodeElement = null;
@@ -139,7 +231,7 @@ public class LoginService : BrowserBase
                         if (await element.IsVisibleAsync())
                         {
                             qrCodeElement = element;
-                            _logger.LogInformation($"找到二维码元素，使用选择器: {selector}");
+                            _logger.LogInformation("找到二维码元素，选择器: {Selector}", selector);
                             break;
                         }
                     }
@@ -150,29 +242,26 @@ public class LoginService : BrowserBase
 
             if (qrCodeElement == null)
             {
-                throw new Exception("未找到二维码元素，可能登录对话框未正确弹出");
+                throw new Exception("未找到二维码元素，建议使用 interactive_login 工具");
             }
 
-            // 5. 获取二维码图片
+            // 获取二维码图片
             string qrCodeBase64;
             var src = await qrCodeElement.GetAttributeAsync("src");
             
             if (!string.IsNullOrEmpty(src) && src.StartsWith("data:image"))
             {
-                // Base64 编码的图片
                 qrCodeBase64 = src.Split(',')[1];
-                _logger.LogInformation("二维码是 Base64 格式");
+                _logger.LogInformation("获取到 Base64 二维码");
             }
             else if (!string.IsNullOrEmpty(src))
             {
-                // URL 图片，需要下载
-                _logger.LogInformation($"二维码是 URL 格式: {src}");
+                _logger.LogInformation("下载二维码图片: {Url}", src);
                 qrCodeBase64 = await DownloadImageAsBase64(src);
             }
             else
             {
-                // Canvas 或其他元素，截图获取
-                _logger.LogInformation("使用截图方式获取二维码");
+                _logger.LogInformation("截图方式获取二维码");
                 var screenshot = await qrCodeElement.ScreenshotAsync();
                 qrCodeBase64 = Convert.ToBase64String(screenshot);
             }
@@ -192,7 +281,7 @@ public class LoginService : BrowserBase
             _logger.LogError(ex, "获取登录二维码失败");
             return new QrCodeInfo
             {
-                Message = $"获取登录二维码失败: {ex.Message}"
+                Message = $"获取登录二维码失败: {ex.Message}\n建议使用 interactive_login 工具进行首次登录"
             };
         }
     }

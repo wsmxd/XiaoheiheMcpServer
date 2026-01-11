@@ -14,12 +14,16 @@ public class XiaoheiheService : IAsyncDisposable
     private readonly InteractionService _interactionService;
     private readonly ILogger<XiaoheiheService> _logger;
 
-    public XiaoheiheService(ILogger<XiaoheiheService> logger, bool headless = true)
+    public XiaoheiheService(
+        ILogger<XiaoheiheService> logger,
+        ILoggerFactory loggerFactory,
+        bool headless = true)
     {
         _logger = logger;
-        _loginService = new LoginService(logger.CreateLoggerFor<LoginService>(), headless);
-        _publishService = new PublishService(logger.CreateLoggerFor<PublishService>(), headless);
-        _interactionService = new InteractionService(logger.CreateLoggerFor<InteractionService>(), headless);
+        // 使用 ILoggerFactory 为各具体服务创建类型化 Logger，避免不安全的类型转换
+        _loginService = new LoginService(loggerFactory.CreateLogger<LoginService>(), headless);
+        _publishService = new PublishService(loggerFactory.CreateLogger<PublishService>(), headless);
+        _interactionService = new InteractionService(loggerFactory.CreateLogger<InteractionService>(), headless);
     }
 
     #region 登录相关
@@ -34,11 +38,20 @@ public class XiaoheiheService : IAsyncDisposable
     }
 
     /// <summary>
-    /// 获取登录二维码
+    /// 交互式登录 - 打开浏览器让用户手动登录
+    /// </summary>
+    public Task<LoginStatus> InteractiveLoginAsync(int waitTimeoutSeconds = 300)
+    {
+        _logger.LogInformation("调用交互式登录服务");
+        return _loginService.InteractiveLoginAsync(waitTimeoutSeconds);
+    }
+
+    /// <summary>
+    /// 获取登录二维码（备用方案）
     /// </summary>
     public Task<QrCodeInfo> GetLoginQrCodeAsync()
     {
-        _logger.LogInformation("调用登录二维码获取服务");
+        _logger.LogInformation("调用登录二维码获取服务（备用方案）");
         return _loginService.GetLoginQrCodeAsync();
     }
 
@@ -115,15 +128,3 @@ public class XiaoheiheService : IAsyncDisposable
     }
 }
 
-/// <summary>
-/// ILogger扩展方法 - 为特定类型创建Logger
-/// </summary>
-internal static class LoggerExtensions
-{
-    public static ILogger<T> CreateLoggerFor<T>(this ILogger logger) where T : class
-    {
-        // 此为临时解决方案，实际应通过DI容器提供特定类型的Logger
-        // 为了保持兼容性，直接强制转换现有Logger
-        return (ILogger<T>)(object)logger;
-    }
-}

@@ -21,7 +21,8 @@ var headless = !args.Contains("--no-headless");
 builder.Services.AddSingleton(sp =>
 {
     var logger = sp.GetRequiredService<ILogger<XiaoheiheService>>();
-    return new XiaoheiheService(logger, headless);
+    var loggerFactory = sp.GetRequiredService<ILoggerFactory>();
+    return new XiaoheiheService(logger, loggerFactory, false);
 });
 
 // 配置MCP服务器
@@ -51,14 +52,32 @@ file class XiaoheiheMcpTools
         
         return status.IsLoggedIn
             ? $"✅ 已登录\n用户名: {status.Username}\n\n你可以使用其他功能了。"
-            : $"❌ 未登录\n\n请使用 get_login_qrcode 工具获取二维码进行登录。";
+            : $"❌ 未登录\n\n{status.Message}\n\n推荐使用 interactive_login 工具进行首次登录（打开浏览器手动登录），或使用 get_login_qrcode 获取二维码。";
     }
 
     /// <summary>
-    /// 获取登录二维码（Base64格式）
+    /// 交互式登录 - 打开浏览器让用户手动登录
+    /// </summary>
+    [McpServerTool(Name = "interactive_login")]
+    [Description("打开浏览器窗口，让用户手动登录小黑盒（推荐首次登录使用）")]
+    public static async Task<string> InteractiveLogin(
+        XiaoheiheService service,
+        ILogger<XiaoheiheMcpTools> logger,
+        [Description("等待用户登录的超时时间（秒），默认300秒")] int waitTimeoutSeconds = 300)
+    {
+        logger.LogInformation("执行工具: interactive_login");
+        var status = await service.InteractiveLoginAsync(waitTimeoutSeconds);
+        
+        return status.IsLoggedIn
+            ? $"✅ {status.Message}\n用户名: {status.Username}\n\n现在可以使用其他功能了！"
+            : $"❌ {status.Message}";
+    }
+
+    /// <summary>
+    /// 获取登录二维码（Base64格式）- 备用方案
     /// </summary>
     [McpServerTool(Name = "get_login_qrcode")]
-    [Description("获取登录二维码，扫码登录小黑盒")]
+    [Description("获取登录二维码，扫码登录小黑盒（备用方案，推荐使用 interactive_login）")]
     public static async Task<string> GetLoginQrCode(
         XiaoheiheService service,
         ILogger<XiaoheiheMcpTools> logger)
