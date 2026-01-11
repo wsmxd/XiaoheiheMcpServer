@@ -185,21 +185,111 @@ public class InteractionService : BrowserBase
             await _page.WaitForLoadStateAsync(LoadState.NetworkIdle);
             await Task.Delay(2000);
 
-            var title = await _page.TextContentAsync("[class*='title'], h1") ?? "无标题";
-            var content = await _page.TextContentAsync("[class*='content'], [class*='article']") ?? "无内容";
-            var author = await _page.TextContentAsync("[class*='author']") ?? "未知作者";
-            var likes = await _page.TextContentAsync("[class*='like']") ?? "0";
-            var comments = await _page.TextContentAsync("[class*='comment-count']") ?? "0";
+            var postDetail = new PostDetail { PostId = args.PostId };
 
-            var detailText = $"标题: {title.Trim()}\n" +
-                           $"作者: {author.Trim()}\n" +
-                           $"点赞: {likes.Trim()}\n" +
-                           $"评论: {comments.Trim()}\n\n" +
-                           $"内容:\n{content.Trim()}";
+            // 1. 获取封面图片：header-image__item-image 下的 img 标签的 src
+            var coverElements = await _page.QuerySelectorAllAsync(".header-image__item-image img");
+            foreach (var coverElement in coverElements)
+            {
+                var src = await coverElement.GetAttributeAsync("src");
+                if (!string.IsNullOrEmpty(src))
+                    postDetail.CoverImages.Add(src);
+            }
+
+            // 2. 获取标题：section-title__content 只提取文字
+            var titleElement = await _page.QuerySelectorAsync(".section-title__content");
+            postDetail.Title = titleElement != null 
+                ? (await titleElement.TextContentAsync() ?? "无标题").Trim() 
+                : "无标题";
+
+            // 3. 获取正文内容：image-text__content 只提取文字
+            var contentElement = await _page.QuerySelectorAsync(".image-text__content");
+            postDetail.Content = contentElement != null 
+                ? (await contentElement.TextContentAsync() ?? "").Trim() 
+                : "";
+
+            // 4. 获取标签：content-tag-text 类（可能有多个）
+            var tagElements = await _page.QuerySelectorAllAsync(".content-tag-text");
+            foreach (var tagElement in tagElements)
+            {
+                var tagText = await tagElement.TextContentAsync();
+                if (!string.IsNullOrEmpty(tagText))
+                    postDetail.Tags.Add(tagText.Trim());
+            }
+
+            // 5. 获取评论总数：slide-tab__tab-cnt
+            var commentCountElement = await _page.QuerySelectorAsync(".slide-tab__tab-cnt");
+            if (commentCountElement != null)
+            {
+                var countText = await commentCountElement.TextContentAsync();
+                int.TryParse(countText?.Trim() ?? "0", out var count);
+                postDetail.CommentCount = count;
+            }
+
+            // 6. 获取具体评论：每个评论在 link-comment__comment-item 类下
+            var commentItems = await _page.QuerySelectorAllAsync(".link-comment__comment-item");
+            foreach (var commentItem in commentItems.Take(20)) // 限制最多20条评论
+            {
+                try
+                {
+                    // 评论内容：comment-item__content 只提取文字
+                    var contentElem = await commentItem.QuerySelectorAsync(".comment-item__content");
+                    var content = contentElem != null 
+                        ? (await contentElem.TextContentAsync() ?? "").Trim() 
+                        : "";
+
+                    // 点赞数：like-box__cnt
+                    var likeElem = await commentItem.QuerySelectorAsync(".like-box__cnt");
+                    var likeText = likeElem != null 
+                        ? await likeElem.TextContentAsync() 
+                        : "0";
+                    int.TryParse(likeText?.Trim() ?? "0", out var likeCount);
+
+                    if (!string.IsNullOrEmpty(content))
+                    {
+                        postDetail.Comments.Add(new CommentItem
+                        {
+                            Content = content,
+                            LikeCount = likeCount
+                        });
+                    }
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogWarning(ex, "提取评论项失败");
+                    continue;
+                }
+            }
+
+            await SaveCookiesAsync();
+
+            // 格式化输出
+            var result = new System.Text.StringBuilder();
+            result.AppendLine($"📌 **{postDetail.Title}**\n");
+            
+            if (postDetail.CoverImages.Count > 0)
+                result.AppendLine($"🖼️ 封面图片: {postDetail.CoverImages.Count} 张");
+            
+            if (postDetail.Tags.Count > 0)
+                result.AppendLine($"🏷️ 标签: {string.Join(", ", postDetail.Tags)}");
+            
+            result.AppendLine($"\n📝 正文内容:\n{postDetail.Content}\n");
+            result.AppendLine($"💬 评论总数: {postDetail.CommentCount}");
+            
+            if (postDetail.Comments.Count > 0)
+            {
+                result.AppendLine($"\n📋 评论列表（前 {postDetail.Comments.Count} 条）:");
+                for (int i = 0; i < postDetail.Comments.Count; i++)
+                {
+                    var comment = postDetail.Comments[i];
+                    result.AppendLine($"\n{i + 1}. {comment.Content}");
+                    result.AppendLine($"   👍 {comment.LikeCount}");
+                }
+            }
 
             return new McpToolResult
             {
-                Content = [new() { Type = "text", Text = detailText }]
+                Content = [new() { Type = "text", Text = result.ToString() }]
             };
         }
         catch (Exception ex)

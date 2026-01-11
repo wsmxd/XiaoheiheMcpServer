@@ -51,7 +51,7 @@ public class PublishVideoArgs
     public string Description { get; set; } = string.Empty;
     public string VideoPath { get; set; } = string.Empty;
     public string? CoverImagePath { get; set; }
-    public List<string> Tags { get; set; } = new();
+    public List<string> Tags { get; set; } = [];
 }
 
 /// <summary>
@@ -86,6 +86,46 @@ public class PostDetailArgs
 {
     public string PostId { get; set; } = string.Empty;
 }
+
+/// <summary>
+/// 帖子详情（完整信息）
+/// </summary>
+public class PostDetail
+{
+    /// <summary>帖子ID</summary>
+    public string PostId { get; set; } = string.Empty;
+    
+    /// <summary>标题</summary>
+    public string Title { get; set; } = string.Empty;
+    
+    /// <summary>封面图片URL列表</summary>
+    public List<string> CoverImages { get; set; } = new();
+    
+    /// <summary>正文内容（纯文本）</summary>
+    public string Content { get; set; } = string.Empty;
+    
+    /// <summary>标签列表</summary>
+    public List<string> Tags { get; set; } = new();
+    
+    /// <summary>评论总数</summary>
+    public int CommentCount { get; set; } = 0;
+    
+    /// <summary>评论列表</summary>
+    public List<CommentItem> Comments { get; set; } = new();
+}
+
+/// <summary>
+/// 评论项
+/// </summary>
+public class CommentItem
+{
+    /// <summary>评论内容</summary>
+    public string Content { get; set; } = string.Empty;
+    
+    /// <summary>点赞数</summary>
+    public int LikeCount { get; set; } = 0;
+}
+
 /// <summary>
 /// 搜索结果项
 /// </summary>
