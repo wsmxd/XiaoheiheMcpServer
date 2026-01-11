@@ -70,7 +70,13 @@ public class SearchArgs
 {
     public string Keyword { get; set; } = string.Empty;
     public int Page { get; set; } = 1;
-    public int PageSize { get; set; } = 20;
+    private int _pageSize = 20;
+    /// <summary>每页大小，最多20条</summary>
+    public int PageSize
+    {
+        get => _pageSize;
+        set => _pageSize = Math.Min(value, 20); // 最多返回20条
+    }
 }
 
 /// <summary>

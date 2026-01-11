@@ -9,10 +9,13 @@ using XiaoheiheMcpServer.Models;
 var builder = Host.CreateApplicationBuilder(args);
 
 // 配置日志输出到stderr（MCP规范要求）
+// 禁用Console日志，只在stderr上输出
+builder.Logging.ClearProviders();
 builder.Logging.AddConsole(options =>
 {
     options.LogToStandardErrorThreshold = LogLevel.Trace;
 });
+builder.Logging.SetMinimumLevel(LogLevel.Warning); // 只输出警告及以上
 
 // 解析命令行参数 - 是否使用无头模式
 var headless = !args.Contains("--no-headless");
@@ -184,13 +187,13 @@ file class XiaoheiheMcpTools
     /// 搜索小黑盒内容
     /// </summary>
     [McpServerTool(Name = "search_content")]
-    [Description("搜索小黑盒内容")]
+    [Description("搜索小黑盒内容，返回匹配的帖子列表")]
     public static async Task<string> SearchContent(
         XiaoheiheService service,
         ILogger<XiaoheiheMcpTools> logger,
         [Description("搜索关键词")] string keyword,
-        [Description("页码")] int page = 1,
-        [Description("每页数量")] int pageSize = 20)
+        [Description("页码，默认1")] int page = 1,
+        [Description("每页数量，默认20，最多20条")] int pageSize = 20)
     {
         logger.LogInformation("执行工具: search_content, keyword={Keyword}", keyword);
         

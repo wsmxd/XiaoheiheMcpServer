@@ -76,11 +76,11 @@ public class InteractionService : BrowserBase
             await _page.WaitForLoadStateAsync(LoadState.NetworkIdle);
             await Task.Delay(2000);
 
-            // 查找所有搜索结果项：div.search-result-link
-            var resultItems = await _page.QuerySelectorAllAsync("div.search-result-link");
+            // 查找所有搜索结果项：.search-result__link（注意是双下划线）
+            var resultItems = await _page.QuerySelectorAllAsync(".search-result__link");
             var results = new List<SearchResultItem>();
 
-            foreach (var item in resultItems.Take(args.PageSize))
+            foreach (var item in resultItems.Take(Math.Min(args.PageSize, 20)))
             {
                 try
                 {
@@ -91,29 +91,22 @@ public class InteractionService : BrowserBase
 
                     if (string.IsNullOrEmpty(postId)) continue;
 
-                    // 获取标题：div.bb-content-title 内的文本（包含emoji）
-                    var titleElement = await item.QuerySelectorAsync("div.bb-content-title");
+                    // 获取标题：div.bbs-content__title 内的文本（包含emoji）
+                    var titleElement = await item.QuerySelectorAsync("div.bbs-content__title");
                     var title = titleElement != null ? await titleElement.TextContentAsync() : "无标题";
 
-                    // 获取内容预览：div.bb-content-content 内的文本
-                    var contentElement = await item.QuerySelectorAsync("div.bb-content-content");
-                    var contentPreview = contentElement != null ? await contentElement.TextContentAsync() : "";
-                    contentPreview = (contentPreview ?? "").Trim();
-                    if (contentPreview.Length > 100)
-                        contentPreview = contentPreview[..100] + "...";
-
-                    // 获取评论数：span.content-list-comment-cnt
-                    var commentElement = await item.QuerySelectorAsync("span.content-list-comment-cnt");
+                    // 获取评论数：span.content-list__comment-cnt
+                    var commentElement = await item.QuerySelectorAsync("span.content-list__comment-cnt");
                     var commentText = commentElement != null ? await commentElement.TextContentAsync() : "0";
                     int.TryParse(commentText?.Trim() ?? "0", out var commentCount);
 
-                    // 获取点赞数：span.content-list-like-cnt
-                    var likeElement = await item.QuerySelectorAsync("span.content-list-like-cnt");
+                    // 获取点赞数：span.content-list__like-cnt
+                    var likeElement = await item.QuerySelectorAsync("span.content-list__like-cnt");
                     var likeText = likeElement != null ? await likeElement.TextContentAsync() : "0";
                     int.TryParse(likeText?.Trim() ?? "0", out var likeCount);
 
-                    // 获取图片：div.hb-opt_image-pointer 中的图片
-                    var imageElements = await item.QuerySelectorAllAsync("div[class*='hb-opt_image pointer']");
+                    // 获取图片：div.hb-opt__image.pointer.bb-content__image
+                    var imageElements = await item.QuerySelectorAllAsync("div.hb-opt__image.pointer.bb-content__image");
                     var imageUrls = new List<string>();
                     foreach (var imgElement in imageElements)
                     {
@@ -128,7 +121,6 @@ public class InteractionService : BrowserBase
                     {
                         PostId = postId,
                         Title = (title ?? "").Trim(),
-                        ContentPreview = contentPreview,
                         Link = href,
                         CommentCount = commentCount,
                         LikeCount = likeCount,
@@ -148,7 +140,6 @@ public class InteractionService : BrowserBase
                 ? $"找到 {results.Count} 条结果：\n\n" + 
                   string.Join("\n\n", results.Select(r => 
                     $"📌 **{r.Title}**\n" +
-                    $"内容：{r.ContentPreview}\n" +
                     $"📝 评论: {r.CommentCount} | 👍 点赞: {r.LikeCount}\n" +
                     (r.ImageUrls.Count > 0 ? $"🖼️ 图片: {r.ImageUrls.Count} 张\n" : "") +
                     $"🔗 {r.Link}"))
