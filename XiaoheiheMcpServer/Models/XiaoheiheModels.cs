@@ -80,3 +80,29 @@ public class PostDetailArgs
 {
     public string PostId { get; set; } = string.Empty;
 }
+/// <summary>
+/// 搜索结果项
+/// </summary>
+public class SearchResultItem
+{
+    /// <summary>帖子ID</summary>
+    public string PostId { get; set; } = string.Empty;
+    
+    /// <summary>标题</summary>
+    public string Title { get; set; } = string.Empty;
+    
+    /// <summary>内容摘要（纯文本）</summary>
+    public string ContentPreview { get; set; } = string.Empty;
+    
+    /// <summary>帖子链接</summary>
+    public string Link { get; set; } = string.Empty;
+    
+    /// <summary>评论数</summary>
+    public int CommentCount { get; set; } = 0;
+    
+    /// <summary>点赞数</summary>
+    public int LikeCount { get; set; } = 0;
+    
+    /// <summary>图片列表</summary>
+    public List<string> ImageUrls { get; set; } = new();
+}

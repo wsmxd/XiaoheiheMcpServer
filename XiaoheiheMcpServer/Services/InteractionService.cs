@@ -76,31 +76,82 @@ public class InteractionService : BrowserBase
             await _page.WaitForLoadStateAsync(LoadState.NetworkIdle);
             await Task.Delay(2000);
 
-            var posts = await _page.QuerySelectorAllAsync("[class*='post-item'], [class*='article'], [class*='search-item']");
-            var results = new List<string>();
+            // 查找所有搜索结果项：div.search-result-link
+            var resultItems = await _page.QuerySelectorAllAsync("div.search-result-link");
+            var results = new List<SearchResultItem>();
 
-            foreach (var post in posts.Take(args.PageSize))
+            foreach (var item in resultItems.Take(args.PageSize))
             {
                 try
                 {
-                    var title = await post.QuerySelectorAsync("[class*='title'], h3, h2");
-                    var author = await post.QuerySelectorAsync("[class*='author'], [class*='user']");
-                    var link = await post.QuerySelectorAsync("a");
+                    // 获取帖子链接和ID
+                    var linkElement = await item.QuerySelectorAsync("a[href*='/app/bbs/link/']");
+                    var href = linkElement != null ? await linkElement.GetAttributeAsync("href") : "";
+                    var postId = ExtractPostId(href ?? "");
 
-                    if (title != null)
+                    if (string.IsNullOrEmpty(postId)) continue;
+
+                    // 获取标题：div.bb-content-title 内的文本（包含emoji）
+                    var titleElement = await item.QuerySelectorAsync("div.bb-content-title");
+                    var title = titleElement != null ? await titleElement.TextContentAsync() : "无标题";
+
+                    // 获取内容预览：div.bb-content-content 内的文本
+                    var contentElement = await item.QuerySelectorAsync("div.bb-content-content");
+                    var contentPreview = contentElement != null ? await contentElement.TextContentAsync() : "";
+                    contentPreview = (contentPreview ?? "").Trim();
+                    if (contentPreview.Length > 100)
+                        contentPreview = contentPreview[..100] + "...";
+
+                    // 获取评论数：span.content-list-comment-cnt
+                    var commentElement = await item.QuerySelectorAsync("span.content-list-comment-cnt");
+                    var commentText = commentElement != null ? await commentElement.TextContentAsync() : "0";
+                    int.TryParse(commentText?.Trim() ?? "0", out var commentCount);
+
+                    // 获取点赞数：span.content-list-like-cnt
+                    var likeElement = await item.QuerySelectorAsync("span.content-list-like-cnt");
+                    var likeText = likeElement != null ? await likeElement.TextContentAsync() : "0";
+                    int.TryParse(likeText?.Trim() ?? "0", out var likeCount);
+
+                    // 获取图片：div.hb-opt_image-pointer 中的图片
+                    var imageElements = await item.QuerySelectorAllAsync("div[class*='hb-opt_image pointer']");
+                    var imageUrls = new List<string>();
+                    foreach (var imgElement in imageElements)
                     {
-                        var titleText = await title.TextContentAsync();
-                        var authorText = author != null ? await author.TextContentAsync() : "未知作者";
-                        var linkHref = link != null ? await link.GetAttributeAsync("href") : "";
-
-                        results.Add($"• {titleText?.Trim()}\n  作者: {authorText?.Trim()}\n  链接: {linkHref}");
+                        var style = await imgElement.GetAttributeAsync("style") ?? "";
+                        // 从style中提取backgroundImage URL（如果有）
+                        var bgMatch = System.Text.RegularExpressions.Regex.Match(style, @"background-image:\s*url\(['""]*(.+?)['""]*\)");
+                        if (bgMatch.Success)
+                            imageUrls.Add(bgMatch.Groups[1].Value);
                     }
+
+                    results.Add(new SearchResultItem
+                    {
+                        PostId = postId,
+                        Title = (title ?? "").Trim(),
+                        ContentPreview = contentPreview,
+                        Link = href,
+                        CommentCount = commentCount,
+                        LikeCount = likeCount,
+                        ImageUrls = imageUrls
+                    });
                 }
-                catch { continue; }
+                catch (Exception ex)
+                {
+                    _logger.LogWarning(ex, "提取搜索结果项失败");
+                    continue;
+                }
             }
 
+            await SaveCookiesAsync();
+
             var resultText = results.Count != 0
-                ? $"找到 {results.Count} 条结果:\n\n{string.Join("\n\n", results)}"
+                ? $"找到 {results.Count} 条结果：\n\n" + 
+                  string.Join("\n\n", results.Select(r => 
+                    $"📌 **{r.Title}**\n" +
+                    $"内容：{r.ContentPreview}\n" +
+                    $"📝 评论: {r.CommentCount} | 👍 点赞: {r.LikeCount}\n" +
+                    (r.ImageUrls.Count > 0 ? $"🖼️ 图片: {r.ImageUrls.Count} 张\n" : "") +
+                    $"🔗 {r.Link}"))
                 : "未找到相关内容";
 
             return new McpToolResult
@@ -117,6 +168,16 @@ public class InteractionService : BrowserBase
                 IsError = true
             };
         }
+    }
+
+    /// <summary>
+    /// 从URL中提取帖子ID
+    /// </summary>
+    private static string ExtractPostId(string url)
+    {
+        // 格式: /app/bbs/link/{postId}?...
+        var match = System.Text.RegularExpressions.Regex.Match(url, @"/app/bbs/link/(\d+)");
+        return match.Success ? match.Groups[1].Value : "";
     }
 
     /// <summary>
