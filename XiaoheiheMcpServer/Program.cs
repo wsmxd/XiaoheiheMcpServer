@@ -108,7 +108,8 @@ file class XiaoheiheMcpTools
         [Description("内容标题")] string title,
         [Description("正文内容")] string content,
         [Description("图片路径列表（本地绝对路径）")] string[]? images = null,
-        [Description("标签列表")] string[]? tags = null)
+        [Description("社区名称列表（必须是已有的社区）")] string[]? communities = null,
+        [Description("话题标签列表")] string[]? tags = null)
     {
         logger.LogInformation("执行工具: publish_content");
         
@@ -117,6 +118,7 @@ file class XiaoheiheMcpTools
             Title = title,
             Content = content,
             Images = images?.ToList() ?? [],
+            Communities = communities?.ToList() ?? [],
             Tags = tags?.ToList() ?? []
         };
         
