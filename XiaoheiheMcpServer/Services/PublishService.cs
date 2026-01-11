@@ -127,7 +127,7 @@ public class PublishService : BrowserBase
             // 文章编辑器通常是contenteditable的div
             try
             {
-                var editorElement = await _page.WaitForSelectorAsync(contentSelector, new() { Timeout = 5000 });
+                var editorElement = await _page.WaitForSelectorAsync(contentSelector, new() { Timeout = 5000 }) ?? throw new Exception("未找到文章编辑器内容区域");
                 await editorElement.ClickAsync(); // 聚焦编辑器
                 await Task.Delay(300);
                 
@@ -433,7 +433,7 @@ public class PublishService : BrowserBase
             {
                 try
                 {
-                    var elements = await _page.QuerySelectorAllAsync(selector);
+                    var elements = await _page!.QuerySelectorAllAsync(selector);
                     foreach (var element in elements)
                     {
                         if (await element.IsVisibleAsync())
