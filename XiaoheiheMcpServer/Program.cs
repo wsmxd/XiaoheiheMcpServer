@@ -242,14 +242,16 @@ file class XiaoheiheMcpTools
         XiaoheiheService service,
         ILogger<XiaoheiheMcpTools> logger,
         [Description("帖子ID")] string postId,
-        [Description("评论内容")] string content)
+        [Description("评论内容")] string content,
+        [Description("评论图片路径列表（可选，本地绝对路径）")] string[]? images = null)
     {
         logger.LogInformation("执行工具: post_comment, postId={PostId}", postId);
         
         var args = new CommentArgs
         {
             PostId = postId,
-            Content = content
+            Content = content,
+            Images = images?.ToList() ?? []
         };
         
         var result = await service.PostCommentAsync(args);
@@ -257,3 +259,4 @@ file class XiaoheiheMcpTools
         return string.Join("\n", result.Content.Select(c => c.Text));
     }
 }
+

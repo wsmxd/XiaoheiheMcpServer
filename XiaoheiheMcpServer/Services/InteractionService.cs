@@ -28,13 +28,92 @@ public class InteractionService : BrowserBase
             await _page.WaitForLoadStateAsync(LoadState.NetworkIdle);
             await Task.Delay(2000);
 
-            var commentSelector = "textarea[placeholder*='评论'], input[placeholder*='评论'], [class*='comment'] textarea";
-            await _page.WaitForSelectorAsync(commentSelector);
-            await _page.FillAsync(commentSelector, args.Content);
+            // 1) 聚焦评论输入框 (ProseMirror hb-editor)
+            var editor = await _page.QuerySelectorAsync(".ProseMirror.hb-editor");
+            if (editor == null)
+            {
+                throw new Exception("未找到评论输入框 .ProseMirror.hb-editor");
+            }
+
+            await editor.ClickAsync();
+            await Task.Delay(300);
+            await _page.Keyboard.PressAsync("Control+A");
+            await Task.Delay(100);
+            await _page.Keyboard.PressAsync("Delete");
+            await Task.Delay(200);
+            await _page.Keyboard.TypeAsync(args.Content);
             await Task.Delay(500);
 
-            var submitSelector = "button[class*='submit'], button:has-text('发送'), button:has-text('评论')";
-            await _page.ClickAsync(submitSelector);
+            // 2) 如果有图片，点击图片按钮并上传
+            if (args.Images.Any())
+            {
+                _logger.LogInformation("评论附带图片，开始上传...");
+                var validImages = args.Images.Where(File.Exists).ToArray();
+                if (validImages.Any())
+                {
+                    try
+                    {
+                        var imageBtn = await _page.QuerySelectorAsync("button.link-reply__menu-item.image");
+                        if (imageBtn != null)
+                        {
+                            var fileChooser = await _page.RunAndWaitForFileChooserAsync(async () =>
+                            {
+                                await imageBtn.ClickAsync();
+                            });
+
+                            if (fileChooser != null)
+                            {
+                                await fileChooser.SetFilesAsync(validImages);
+                                await Task.Delay(2000 + 1000 * validImages.Length);
+                                _logger.LogInformation($"评论图片上传完成: {validImages.Length} 张");
+                            }
+                            else
+                            {
+                                _logger.LogWarning("未能捕获评论图片的文件选择器");
+                            }
+                        }
+                        else
+                        {
+                            _logger.LogWarning("未找到评论图片按钮 .link-reply__menu-item.image");
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.LogWarning(ex, "评论图片上传失败");
+                    }
+                }
+                else
+                {
+                    _logger.LogWarning("评论图片路径无有效文件，跳过上传");
+                }
+            }
+
+            // 3) 点击发布评论按钮
+            var submitSelectors = new[]
+            {
+                ".link-reply__menu-btn.hb-color__btn--confirm",
+                "button:has-text('发送')",
+                "button:has-text('评论')",
+                "button[class*='submit']"
+            };
+
+            var clicked = false;
+            foreach (var selector in submitSelectors)
+            {
+                var btn = await _page.QuerySelectorAsync(selector);
+                if (btn != null && await btn.IsVisibleAsync())
+                {
+                    await btn.ClickAsync();
+                    clicked = true;
+                    break;
+                }
+            }
+
+            if (!clicked)
+            {
+                throw new Exception("未找到评论发布按钮");
+            }
+
             await Task.Delay(2000);
 
             await SaveCookiesAsync();
