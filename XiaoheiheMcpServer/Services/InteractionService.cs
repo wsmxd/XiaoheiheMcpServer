@@ -191,7 +191,7 @@ public partial class InteractionService : BrowserBase
                     {
                         var style = await imgElement.GetAttributeAsync("style") ?? "";
                         // 从style中提取backgroundImage URL（如果有）
-                        var bgMatch = System.Text.RegularExpressions.Regex.Match(style, @"background-image:\s*url\(['""]*(.+?)['""]*\)");
+                        var bgMatch = MyRegex1().Match(style);
                         if (bgMatch.Success)
                             imageUrls.Add(bgMatch.Groups[1].Value);
                     }
@@ -286,6 +286,34 @@ public partial class InteractionService : BrowserBase
             postDetail.Content = contentElement != null 
                 ? (await contentElement.TextContentAsync() ?? "").Trim() 
                 : "";
+
+            // 文章类型：如果正文为空，则从 .post__content 下的多个 p 标签中提取正文
+            if (string.IsNullOrWhiteSpace(postDetail.Content))
+            {
+                try
+                {
+                    var paragraphElements = await _page.QuerySelectorAllAsync(".post__content p");
+                    if (paragraphElements.Count > 0)
+                    {
+                        var paragraphs = new List<string>(paragraphElements.Count);
+                        foreach (var p in paragraphElements)
+                        {
+                            var text = (await p.TextContentAsync() ?? "").Trim();
+                            if (!string.IsNullOrEmpty(text))
+                                paragraphs.Add(text);
+                        }
+
+                        if (paragraphs.Count > 0)
+                        {
+                            postDetail.Content = string.Join("\n", paragraphs);
+                        }
+                    }
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogWarning(ex, "文章正文回退解析失败（.post__content p）");
+                }
+            }
 
             // 4. 获取标签：content-tag-text 类（可能有多个）
             var tagElements = await _page.QuerySelectorAllAsync(".content-tag-text");
@@ -384,4 +412,6 @@ public partial class InteractionService : BrowserBase
 
     [System.Text.RegularExpressions.GeneratedRegex(@"/app/bbs/link/(\d+)")]
     private static partial System.Text.RegularExpressions.Regex MyRegex();
+    [System.Text.RegularExpressions.GeneratedRegex(@"background-image:\s*url\(['""]*(.+?)['""]*\)")]
+    private static partial System.Text.RegularExpressions.Regex MyRegex1();
 }
