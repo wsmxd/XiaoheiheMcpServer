@@ -20,12 +20,24 @@ builder.Logging.SetMinimumLevel(LogLevel.Warning); // 只输出警告及以上
 // 解析命令行参数 - 是否使用无头模式
 var headless = !args.Contains("--no-headless");
 
+// 检查是否首次使用（是否存在 Cookie 文件）
+var dataDir = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "data");
+var cookiePath = Path.Combine(dataDir, "cookies.json");
+var isFirstTime = !File.Exists(cookiePath);
+
+// 首次使用时强制使用有头模式，让用户能看到浏览器完成登录
+if (isFirstTime)
+{
+    headless = false;
+    Console.Error.WriteLine("🔔 检测到首次使用，将使用有头模式打开浏览器，请完成登录后后续将自动使用无头模式");
+}
+
 // 注册服务
 builder.Services.AddSingleton(sp =>
 {
     var logger = sp.GetRequiredService<ILogger<XiaoheiheService>>();
     var loggerFactory = sp.GetRequiredService<ILoggerFactory>();
-    return new XiaoheiheService(logger, loggerFactory, false);
+    return new XiaoheiheService(logger, loggerFactory, headless);
 });
 
 // 配置MCP服务器

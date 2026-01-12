@@ -164,99 +164,48 @@ public class LoginService : BrowserBase
             await _page.WaitForLoadStateAsync(LoadState.NetworkIdle);
             await Task.Delay(2000);
 
-            // 查找并点击右上角的二维码图标切换到扫码登录
-            _logger.LogInformation("查找二维码切换按钮...");
-            var qrSwitchSelectors = new[]
+            // 新版流程：点击 .img 容器触发二维码显示
+            var imgContainer = await _page.QuerySelectorAsync("div.img");
+            if (imgContainer == null || !await imgContainer.IsVisibleAsync())
             {
-                "[class*='qrcode'], [class*='qr-code'], [title*='二维码'], [aria-label*='二维码']",
-                "svg, i, span, button, a" // 可能是图标
-            };
-
-            IElementHandle? qrSwitch = null;
-            foreach (var selector in qrSwitchSelectors)
-            {
-                try
-                {
-                    var elements = await _page.QuerySelectorAllAsync(selector);
-                    foreach (var element in elements)
-                    {
-                        if (await element.IsVisibleAsync())
-                        {
-                            var html = await element.EvaluateAsync<string>("el => el.outerHTML");
-                            if (html.Contains("qr") || html.Contains("二维码"))
-                            {
-                                qrSwitch = element;
-                                _logger.LogInformation("找到二维码切换按钮");
-                                break;
-                            }
-                        }
-                    }
-                    if (qrSwitch != null) break;
-                }
-                catch { }
+                throw new Exception("未找到二维码入口容器（div.img）");
             }
 
-            if (qrSwitch != null)
-            {
-                _logger.LogInformation("点击二维码切换按钮...");
-                await qrSwitch.ClickAsync();
-                await Task.Delay(2000);
-            }
+            _logger.LogInformation("点击二维码入口容器（div.img）...");
+            // 直接使用 JS 点击，避免被拦截导致 Playwright 自动重试超时
+            await imgContainer.EvaluateAsync("el => el.click()");
 
-            // 查找二维码图片
-            _logger.LogInformation("查找二维码图片...");
-            var qrCodeSelectors = new[]
-            {
-                "img[alt*='qr'], img[alt*='二维码']",
-                "canvas",
-                "[class*='qrcode'] img, [class*='qr-code'] img",
-                "img[src*='qrcode'], img[src*='qr']"
-            };
-
-            IElementHandle? qrCodeElement = null;
-            foreach (var selector in qrCodeSelectors)
-            {
-                try
-                {
-                    var elements = await _page.QuerySelectorAllAsync(selector);
-                    foreach (var element in elements)
-                    {
-                        if (await element.IsVisibleAsync())
-                        {
-                            qrCodeElement = element;
-                            _logger.LogInformation("找到二维码元素，选择器: {Selector}", selector);
-                            break;
-                        }
-                    }
-                    if (qrCodeElement != null) break;
-                }
-                catch { }
-            }
-
-            if (qrCodeElement == null)
-            {
-                throw new Exception("未找到二维码元素，建议使用 interactive_login 工具");
-            }
-
-            // 获取二维码图片
-            string qrCodeBase64;
-            var src = await qrCodeElement.GetAttributeAsync("src");
+            // 点击后需要等待二维码 canvas 渲染（增加延迟确保二维码完全加载）
+            _logger.LogInformation("等待二维码 canvas 渲染...");
+            await Task.Delay(1000);
             
-            if (!string.IsNullOrEmpty(src) && src.StartsWith("data:image"))
+            // 等待并获取二维码 canvas 元素
+            await _page.WaitForSelectorAsync("canvas#login-qrcode", new() { Timeout = 15000 });
+            var canvas = await _page.QuerySelectorAsync("canvas#login-qrcode") 
+                         ?? throw new Exception("未找到二维码 canvas（canvas#login-qrcode）");
+            
+            _logger.LogInformation("已找到二维码 canvas 元素");
+            string? dataUrl = null;
+            try
             {
-                qrCodeBase64 = src.Split(',')[1];
-                _logger.LogInformation("获取到 Base64 二维码");
+                dataUrl = await canvas.EvaluateAsync<string>("c => c.toDataURL('image/png')");
             }
-            else if (!string.IsNullOrEmpty(src))
+            catch (Exception ex)
             {
-                _logger.LogInformation("下载二维码图片: {Url}", src);
-                qrCodeBase64 = await DownloadImageAsBase64(src);
+                _logger.LogDebug(ex, "canvas.toDataURL 失败，尝试截图方式获取二维码");
+            }
+
+            string qrCanvasBase64;
+            if (!string.IsNullOrWhiteSpace(dataUrl) && dataUrl.StartsWith("data:image", StringComparison.OrdinalIgnoreCase))
+            {
+                qrCanvasBase64 = dataUrl.Split(',')[1];
+                _logger.LogInformation("已从 canvas.toDataURL 获取到 Base64 二维码");
             }
             else
             {
-                _logger.LogInformation("截图方式获取二维码");
-                var screenshot = await qrCodeElement.ScreenshotAsync();
-                qrCodeBase64 = Convert.ToBase64String(screenshot);
+                var screenshot = await canvas.ScreenshotAsync();
+                qrCanvasBase64 = Convert.ToBase64String(screenshot);
+                _logger.LogInformation("已通过截图方式获取到 Base64 二维码");
             }
 
             _logger.LogInformation("二维码获取成功，等待扫码登录...");
@@ -264,7 +213,7 @@ public class LoginService : BrowserBase
 
             return new QrCodeInfo
             {
-                QrCodeBase64 = qrCodeBase64,
+                QrCodeBase64 = qrCanvasBase64,
                 ExpireTime = DateTime.Now.AddMinutes(5),
                 Message = "请使用小黑盒APP扫描二维码登录"
             };
