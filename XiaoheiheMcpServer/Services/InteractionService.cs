@@ -7,7 +7,7 @@ namespace XiaoheiheMcpServer.Services;
 /// <summary>
 /// 小黑盒互动服务 - 处理评论、搜索、帖子详情等
 /// </summary>
-public class InteractionService : BrowserBase
+public partial class InteractionService : BrowserBase
 {
     public InteractionService(ILogger<InteractionService> logger, bool headless = true)
         : base(logger, headless)
@@ -121,10 +121,10 @@ public class InteractionService : BrowserBase
             _logger.LogInformation("评论发布成功");
             return new McpToolResult
             {
-                Content = new List<McpContent>
-                {
+                Content =
+                [
                     new() { Type = "text", Text = $"✅ 评论发布成功！\n内容: {args.Content}" }
-                }
+                ]
             };
         }
         catch (Exception ex)
@@ -234,7 +234,7 @@ public class InteractionService : BrowserBase
             _logger.LogError(ex, "搜索失败");
             return new McpToolResult
             {
-                Content = new List<McpContent> { new() { Type = "text", Text = $"❌ 搜索失败: {ex.Message}" } },
+                Content = [new() { Type = "text", Text = $"❌ 搜索失败: {ex.Message}" }],
                 IsError = true
             };
         }
@@ -246,7 +246,7 @@ public class InteractionService : BrowserBase
     private static string ExtractPostId(string url)
     {
         // 格式: /app/bbs/link/{postId}?...
-        var match = System.Text.RegularExpressions.Regex.Match(url, @"/app/bbs/link/(\d+)");
+        var match = MyRegex().Match(url);
         return match.Success ? match.Groups[1].Value : "";
     }
 
@@ -376,9 +376,12 @@ public class InteractionService : BrowserBase
             _logger.LogError(ex, "获取帖子详情失败");
             return new McpToolResult
             {
-                Content = new List<McpContent> { new() { Type = "text", Text = $"❌ 获取帖子详情失败: {ex.Message}" } },
+                Content = [new() { Type = "text", Text = $"❌ 获取帖子详情失败: {ex.Message}" }],
                 IsError = true
             };
         }
     }
+
+    [System.Text.RegularExpressions.GeneratedRegex(@"/app/bbs/link/(\d+)")]
+    private static partial System.Text.RegularExpressions.Regex MyRegex();
 }

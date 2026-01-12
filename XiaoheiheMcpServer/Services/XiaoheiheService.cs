@@ -11,6 +11,7 @@ public class XiaoheiheService : IAsyncDisposable
 {
     private readonly LoginService _loginService;
     private readonly PublishService _publishService;
+    private readonly ArticlePublishService _articlePublishService;
     private readonly InteractionService _interactionService;
     private readonly ILogger<XiaoheiheService> _logger;
 
@@ -23,6 +24,7 @@ public class XiaoheiheService : IAsyncDisposable
         // 使用 ILoggerFactory 为各具体服务创建类型化 Logger，避免不安全的类型转换
         _loginService = new LoginService(loggerFactory.CreateLogger<LoginService>(), headless);
         _publishService = new PublishService(loggerFactory.CreateLogger<PublishService>(), headless);
+        _articlePublishService = new ArticlePublishService(loggerFactory.CreateLogger<ArticlePublishService>(), headless);
         _interactionService = new InteractionService(loggerFactory.CreateLogger<InteractionService>(), headless);
     }
 
@@ -74,7 +76,7 @@ public class XiaoheiheService : IAsyncDisposable
     public Task<McpToolResult> PublishArticleAsync(PublishArticleArgs args)
     {
         _logger.LogInformation($"调用发布文章服务: {args.Title}");
-        return _publishService.PublishArticleAsync(args);
+        return _articlePublishService.PublishArticleAsync(args);
     }
 
     /// <summary>

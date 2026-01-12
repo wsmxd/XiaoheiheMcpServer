@@ -11,18 +11,24 @@ namespace XiaoheiheMcpServer.Tests.Services;
 public class ServiceIntegrationTests : IAsyncDisposable
 {
     private readonly Mock<ILogger<XiaoheiheService>> _loggerMock;
+    private readonly Mock<ILoggerFactory> _loggerFactoryMock;
     private XiaoheiheService? _service;
 
     public ServiceIntegrationTests()
     {
         _loggerMock = new Mock<ILogger<XiaoheiheService>>();
+        _loggerFactoryMock = new Mock<ILoggerFactory>();
+        // 配置 LoggerFactory mock 以返回 mock logger
+        _loggerFactoryMock
+            .Setup(x => x.CreateLogger(It.IsAny<string>()))
+            .Returns(_loggerMock.Object);
     }
 
     [Fact]
     public async Task FullPublishingWorkflow_ShouldCoordinateAllServices()
     {
         // Arrange
-        _service = new XiaoheiheService(_loggerMock.Object, headless: true);
+        _service = new XiaoheiheService(_loggerMock.Object, _loggerFactoryMock.Object, headless: true);
 
         // 1. 检查登录状态
         var loginStatus = await _service.CheckLoginStatusAsync();
@@ -56,7 +62,7 @@ public class ServiceIntegrationTests : IAsyncDisposable
     public async Task MultiplePublishingMethods_ShouldAllWork()
     {
         // Arrange
-        _service = new XiaoheiheService(_loggerMock.Object, headless: true);
+        _service = new XiaoheiheService(_loggerMock.Object, _loggerFactoryMock.Object, headless: true);
 
         // Act & Assert
         // 1. 发布图文
@@ -89,7 +95,7 @@ public class ServiceIntegrationTests : IAsyncDisposable
     public async Task ServiceDisposal_ShouldProperlyCleanupisSources()
     {
         // Arrange
-        _service = new XiaoheiheService(_loggerMock.Object, headless: true);
+        _service = new XiaoheiheService(_loggerMock.Object, _loggerFactoryMock.Object, headless: true);
 
         // Act
         await _service.DisposeAsync();

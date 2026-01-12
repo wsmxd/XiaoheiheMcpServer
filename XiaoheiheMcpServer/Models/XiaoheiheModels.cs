@@ -40,6 +40,7 @@ public class PublishArticleArgs
     public string Title { get; set; } = string.Empty;
     public string Content { get; set; } = string.Empty;
     public List<string> Images { get; set; } = new();
+    public List<string> Communities { get; set; } = new();
     public List<string> Tags { get; set; } = new();
 }
 
