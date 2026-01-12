@@ -21,6 +21,33 @@ public class PublishService : BrowserBase
     {
         try
         {
+            const int MaxCommunities = 2;
+            const int MaxTags = 5;
+
+            if (args.Communities.Count > MaxCommunities)
+            {
+                return new McpToolResult
+                {
+                    IsError = true,
+                    Content =
+                    [
+                        new() { Type = "text", Text = $"❌ communities 最多只能传 {MaxCommunities} 个（当前: {args.Communities.Count}）" }
+                    ]
+                };
+            }
+
+            if (args.Tags.Count > MaxTags)
+            {
+                return new McpToolResult
+                {
+                    IsError = true,
+                    Content =
+                    [
+                        new() { Type = "text", Text = $"❌ tags 最多只能传 {MaxTags} 个（当前: {args.Tags.Count}）" }
+                    ]
+                };
+            }
+
             _logger.LogInformation($"开始发布内容: {args.Title}");
             await InitializeBrowserAsync();
 
@@ -166,19 +193,19 @@ public class PublishService : BrowserBase
             // 4. 选择社区 - 点击第一个添加按钮
             if (args.Communities.Any())
             {
-                _logger.LogInformation("开始选择社区...");
+                _logger.LogInformation($"开始选择社区，共{args.Communities.Count}个...");
                 try
                 {
-                    var addButtons = await _page.QuerySelectorAllAsync(".editor__add-btn");
-                    if (addButtons.Count > 0)
+                    foreach (var communityName in args.Communities)
                     {
-                        // 点击第一个添加按钮（社区）
-                        await addButtons[0].ClickAsync();
-                        await Task.Delay(1000);
-                        _logger.LogInformation("点击添加社区按钮");
-                        
-                        foreach (var communityName in args.Communities)
+                        var addButtons = await _page.QuerySelectorAllAsync(".editor__add-btn");
+                        if (addButtons.Count > 0)
                         {
+                            // 每次都点击添加按钮（社区）
+                            await addButtons[0].ClickAsync();
+                            await Task.Delay(1000);
+                            _logger.LogInformation($"点击添加社区按钮，搜索: {communityName}");
+                            
                             // 输入社区名称
                             var searchInput = await _page.QuerySelectorAsync(".editor__search-input--input");
                             if (searchInput != null)
@@ -186,16 +213,15 @@ public class PublishService : BrowserBase
                                 await searchInput.ClickAsync();
                                 await Task.Delay(200);
                                 await searchInput.FillAsync(communityName);
-                                await Task.Delay(800);
+                                await Task.Delay(1000);
                                 
-                                // 点击第一个社区项
-                                var communityItem = await _page.QuerySelectorAsync(".editor-model__topic-list-item");
+                                // 点击editor-model__topic-list下的第一个社区项
+                                var communityItem = await _page.QuerySelectorAsync(".editor-model__topic-list .editor-model__topic-list-item");
                                 if (communityItem != null)
                                 {
                                     await communityItem.ClickAsync();
                                     await Task.Delay(500);
                                     _logger.LogInformation($"已选择社区: {communityName}");
-                                    break; // 只选择第一个社区
                                 }
                                 else
                                 {
@@ -214,19 +240,20 @@ public class PublishService : BrowserBase
             // 5. 添加话题 - 点击第二个添加按钮
             if (args.Tags.Any())
             {
-                _logger.LogInformation("开始添加话题...");
+                _logger.LogInformation($"开始添加话题，共{args.Tags.Count}个...");
                 try
                 {
-                    var addButtons = await _page.QuerySelectorAllAsync(".editor__add-btn");
-                    if (addButtons.Count > 1)
+                    foreach (var tag in args.Tags)
                     {
-                        // 点击第二个添加按钮（话题）
-                        await addButtons[1].ClickAsync();
-                        await Task.Delay(1000);
-                        _logger.LogInformation("点击添加话题按钮");
-                        
-                        foreach (var tag in args.Tags)
+                        // 话题按钮位于 .editor__more-info.hashtags 容器内
+                        var hashtagAddBtn = await _page.QuerySelectorAsync(".editor__more-info.hashtags .editor__add-btn");
+                        if (hashtagAddBtn != null)
                         {
+                            // 每次都点击话题按钮
+                            await hashtagAddBtn.ClickAsync();
+                            await Task.Delay(1000);
+                            _logger.LogInformation($"点击添加话题按钮，搜索: {tag}");
+                            
                             // 输入话题名称
                             var searchInput = await _page.QuerySelectorAsync(".editor__search-input--input");
                             if (searchInput != null)
@@ -250,14 +277,6 @@ public class PublishService : BrowserBase
                                 }
                             }
                         }
-                        
-                        // 关闭话题选择对话框（点击取消或其他地方）
-                        try
-                        {
-                            await _page.Keyboard.PressAsync("Escape");
-                            await Task.Delay(300);
-                        }
-                        catch { }
                     }
                 }
                 catch (Exception ex)
@@ -275,22 +294,22 @@ public class PublishService : BrowserBase
                 "div[role='button']:has-text('发布')"
             };
 
-            bool published = false;
-            foreach (var selector in publishSelectors)
-            {
-                try
-                {
-                    var publishBtn = await _page.QuerySelectorAsync(selector);
-                    if (publishBtn != null && await publishBtn.IsVisibleAsync())
-                    {
-                        _logger.LogInformation($"找到发布按钮: {selector}");
-                        await publishBtn.ClickAsync();
-                        published = true;
-                        break;
-                    }
-                }
-                catch { }
-            }
+            // bool published = false;
+            // foreach (var selector in publishSelectors)
+            // {
+            //     try
+            //     {
+            //         var publishBtn = await _page.QuerySelectorAsync(selector);
+            //         if (publishBtn != null && await publishBtn.IsVisibleAsync())
+            //         {
+            //             _logger.LogInformation($"找到发布按钮: {selector}");
+            //             await publishBtn.ClickAsync();
+            //             published = true;
+            //             break;
+            //         }
+            //     }
+            //     catch { }
+            // }
 
             await Task.Delay(3000);
             await SaveCookiesAsync();
@@ -300,7 +319,7 @@ public class PublishService : BrowserBase
             {
                 Content =
                 [
-                    new() { Type = "text", Text = published 
+                    new() { Type = "text", Text = false 
                         ? $"✅ 发布成功！\n标题: {args.Title}\n内容已发布到小黑盒" 
                         : $"⚠️ 内容已填写，但未能自动点击发布按钮，请手动检查并发布\n标题: {args.Title}" }
                 ]
@@ -327,6 +346,33 @@ public class PublishService : BrowserBase
     {
         try
         {
+            const int MaxCommunities = 2;
+            const int MaxTags = 5;
+
+            if (args.Communities.Count > MaxCommunities)
+            {
+                return new McpToolResult
+                {
+                    IsError = true,
+                    Content =
+                    [
+                        new() { Type = "text", Text = $"❌ communities 最多只能传 {MaxCommunities} 个（当前: {args.Communities.Count}）" }
+                    ]
+                };
+            }
+
+            if (args.Tags.Count > MaxTags)
+            {
+                return new McpToolResult
+                {
+                    IsError = true,
+                    Content =
+                    [
+                        new() { Type = "text", Text = $"❌ tags 最多只能传 {MaxTags} 个（当前: {args.Tags.Count}）" }
+                    ]
+                };
+            }
+
             _logger.LogInformation($"开始发布文章: {args.Title}");
             await InitializeBrowserAsync();
 

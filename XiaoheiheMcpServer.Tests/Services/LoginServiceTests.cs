@@ -27,7 +27,7 @@ public class LoginServiceTests : IAsyncDisposable
         Assert.NotNull(_service);
     }
 
-    [Fact]
+    [Fact(Skip = "依赖真实网页/Playwright 环境，默认跳过")]
     public async Task CheckLoginStatusAsync_ShouldReturnLoginStatus()
     {
         // Arrange
@@ -43,7 +43,7 @@ public class LoginServiceTests : IAsyncDisposable
         Assert.True(result.IsLoggedIn == false || result.IsLoggedIn == true);
     }
 
-    [Fact]
+    [Fact(Skip = "依赖真实网页/Playwright 环境，默认跳过")]
     public async Task GetLoginQrCodeAsync_ShouldReturnQrCodeInfo()
     {
         // Arrange

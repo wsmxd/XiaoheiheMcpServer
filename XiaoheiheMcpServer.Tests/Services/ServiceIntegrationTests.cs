@@ -24,7 +24,7 @@ public class ServiceIntegrationTests : IAsyncDisposable
             .Returns(_loggerMock.Object);
     }
 
-    [Fact]
+    [Fact(Skip = "依赖真实网页/Playwright 环境，默认跳过")]
     public async Task FullPublishingWorkflow_ShouldCoordinateAllServices()
     {
         // Arrange
@@ -58,7 +58,7 @@ public class ServiceIntegrationTests : IAsyncDisposable
         // Assert - 整个工作流应该完成而不抛出异常
     }
 
-    [Fact]
+    [Fact(Skip = "依赖真实网页/Playwright 环境，默认跳过")]
     public async Task MultiplePublishingMethods_ShouldAllWork()
     {
         // Arrange

@@ -23,6 +23,33 @@ public class ArticlePublishService : BrowserBase
     {
         try
         {
+            const int MaxCommunities = 2;
+            const int MaxTags = 5;
+
+            if (args.Communities.Count > MaxCommunities)
+            {
+                return new McpToolResult
+                {
+                    IsError = true,
+                    Content =
+                    [
+                        new() { Type = "text", Text = $"❌ communities 最多只能传 {MaxCommunities} 个（当前: {args.Communities.Count}）" }
+                    ]
+                };
+            }
+
+            if (args.Tags.Count > MaxTags)
+            {
+                return new McpToolResult
+                {
+                    IsError = true,
+                    Content =
+                    [
+                        new() { Type = "text", Text = $"❌ tags 最多只能传 {MaxTags} 个（当前: {args.Tags.Count}）" }
+                    ]
+                };
+            }
+
             _logger.LogInformation($"[Article] 开始发布文章: {args.Title}");
             await InitializeBrowserAsync();
 
@@ -372,26 +399,28 @@ public class ArticlePublishService : BrowserBase
         {
             try
             {
-                var addBtns = await _page.QuerySelectorAllAsync(".editor__add-btn");
-                if (addBtns.Count > 0)
+                foreach (var communityName in args.Communities)
                 {
-                    await addBtns[0].ClickAsync();
-                    await Task.Delay(700);
-                    foreach (var communityName in args.Communities)
+                    var addBtns = await _page.QuerySelectorAllAsync(".editor__add-btn");
+                    if (addBtns.Count > 0)
                     {
+                        await addBtns[0].ClickAsync();
+                        await Task.Delay(700);
+                        
                         var input = await _page.QuerySelectorAsync(".editor__search-input--input");
                         if (input != null)
                         {
                             await input.ClickAsync();
-                            await Task.Delay(100);
+                            await Task.Delay(200);
                             await input.FillAsync(communityName);
-                            await Task.Delay(600);
-                            var item = await _page.QuerySelectorAsync(".editor-model__topic-list-item");
+                            await Task.Delay(1000);
+                            
+                            var item = await _page.QuerySelectorAsync(".editor-model__topic-list .editor-model__topic-list-item");
                             if (item != null)
                             {
                                 await item.ClickAsync();
-                                await Task.Delay(300);
-                                break; // 仅选择第一个社区
+                                await Task.Delay(500);
+                                _logger.LogInformation($"[Article] 已选择社区: {communityName}");
                             }
                         }
                     }
@@ -408,29 +437,32 @@ public class ArticlePublishService : BrowserBase
         {
             try
             {
-                var addBtns = await _page.QuerySelectorAllAsync(".editor__add-btn");
-                if (addBtns.Count > 1)
+                foreach (var tag in args.Tags)
                 {
-                    await addBtns[1].ClickAsync();
-                    await Task.Delay(700);
-                    foreach (var tag in args.Tags)
+                    // 话题按钮位于 .editor__more-info.hashtags 容器内
+                    var hashtagAddBtn = await _page.QuerySelectorAsync(".editor__more-info.hashtags .editor__add-btn");
+                    if (hashtagAddBtn != null)
                     {
+                        await hashtagAddBtn.ClickAsync();
+                        await Task.Delay(700);
+                        
                         var input = await _page.QuerySelectorAsync(".editor__search-input--input");
                         if (input != null)
                         {
                             await input.ClickAsync();
-                            await Task.Delay(100);
+                            await Task.Delay(200);
                             await input.FillAsync(tag);
                             await Task.Delay(600);
+                            
                             var tagItem = await _page.QuerySelectorAsync(".editor-model__hashtag-list-item");
                             if (tagItem != null)
                             {
                                 await tagItem.ClickAsync();
-                                await Task.Delay(300);
+                                await Task.Delay(500);
+                                _logger.LogInformation($"[Article] 已添加话题: {tag}");
                             }
                         }
                     }
-                    try { await _page.Keyboard.PressAsync("Escape"); } catch { }
                 }
             }
             catch (Exception ex)

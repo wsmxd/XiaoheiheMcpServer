@@ -28,7 +28,7 @@ public class PublishServiceTests : IAsyncDisposable
         Assert.NotNull(_service);
     }
 
-    [Fact]
+    [Fact(Skip = "依赖真实网页/Playwright 环境，默认跳过")]
     public async Task PublishContentAsync_WithValidArgs_ShouldReturnResult()
     {
         // Arrange
@@ -51,7 +51,7 @@ public class PublishServiceTests : IAsyncDisposable
         Assert.True(result.Content[0].Type == "text");
     }
 
-    [Fact]
+    [Fact(Skip = "依赖真实网页/Playwright 环境，默认跳过")]
     public async Task PublishContentAsync_WithEmptyTitle_ShouldHandleGracefully()
     {
         // Arrange
@@ -73,6 +73,47 @@ public class PublishServiceTests : IAsyncDisposable
     }
 
     [Fact]
+    public async Task PublishContentAsync_WithTooManyCommunities_ShouldReturnError()
+    {
+        _service = new PublishService(_loggerMock.Object, headless: true);
+        var args = new PublishContentArgs
+        {
+            Title = "测试标题",
+            Content = "测试内容",
+            Images = [],
+            Communities = ["社区1", "社区2", "社区3"],
+            Tags = []
+        };
+
+        var result = await _service.PublishContentAsync(args);
+
+        Assert.NotNull(result);
+        Assert.True(result.IsError);
+        Assert.NotNull(result.Content);
+        Assert.Contains("communities", result.Content[0].Text, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public async Task PublishContentAsync_WithTooManyTags_ShouldReturnError()
+    {
+        _service = new PublishService(_loggerMock.Object, headless: true);
+        var args = new PublishContentArgs
+        {
+            Title = "测试标题",
+            Content = "测试内容",
+            Images = [],
+            Tags = ["1", "2", "3", "4", "5", "6"]
+        };
+
+        var result = await _service.PublishContentAsync(args);
+
+        Assert.NotNull(result);
+        Assert.True(result.IsError);
+        Assert.NotNull(result.Content);
+        Assert.Contains("tags", result.Content[0].Text, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact(Skip = "依赖真实网页/Playwright 环境，默认跳过")]
     public async Task PublishArticleAsync_WithValidArgs_ShouldReturnResult()
     {
         // Arrange

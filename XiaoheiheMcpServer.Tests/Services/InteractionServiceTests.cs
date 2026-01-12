@@ -28,7 +28,7 @@ public class InteractionServiceTests : IAsyncDisposable
         Assert.NotNull(_service);
     }
 
-    [Fact]
+    [Fact(Skip = "依赖真实网页/Playwright 环境，默认跳过")]
     public async Task SearchAsync_WithValidKeyword_ShouldReturnResults()
     {
         // Arrange
@@ -50,7 +50,7 @@ public class InteractionServiceTests : IAsyncDisposable
         Assert.True(result.Content[0].Type == "text");
     }
 
-    [Fact]
+    [Fact(Skip = "依赖真实网页/Playwright 环境，默认跳过")]
     public async Task PostCommentAsync_WithValidArgs_ShouldReturnResult()
     {
         // Arrange
@@ -70,7 +70,7 @@ public class InteractionServiceTests : IAsyncDisposable
         Assert.Single(result.Content);
     }
 
-    [Fact]
+    [Fact(Skip = "依赖真实网页/Playwright 环境，默认跳过")]
     public async Task PostCommentAsync_WithEmptyContent_ShouldHandleGracefully()
     {
         // Arrange
@@ -89,7 +89,7 @@ public class InteractionServiceTests : IAsyncDisposable
         Assert.NotNull(result.Content);
     }
 
-    [Fact]
+    [Fact(Skip = "依赖真实网页/Playwright 环境，默认跳过")]
     public async Task GetPostDetailAsync_WithValidPostId_ShouldReturnPostDetail()
     {
         // Arrange

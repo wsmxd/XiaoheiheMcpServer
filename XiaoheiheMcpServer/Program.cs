@@ -108,10 +108,20 @@ file class XiaoheiheMcpTools
         [Description("内容标题")] string title,
         [Description("正文内容")] string content,
         [Description("图片路径列表（本地绝对路径）")] string[]? images = null,
-        [Description("社区名称列表（必须是已有的社区）")] string[]? communities = null,
-        [Description("话题标签列表")] string[]? tags = null)
+        [Description("社区名称列表（必须是已有的社区，最多2个）")] string[]? communities = null,
+        [Description("话题标签列表（最多5个）")] string[]? tags = null)
     {
         logger.LogInformation("执行工具: publish_content");
+
+        if (communities is { Length: > 2 })
+        {
+            return "❌ communities 最多只能传 2 个";
+        }
+
+        if (tags is { Length: > 5 })
+        {
+            return "❌ tags 最多只能传 5 个";
+        }
         
         var args = new PublishContentArgs
         {
@@ -137,18 +147,26 @@ file class XiaoheiheMcpTools
         ILogger<XiaoheiheMcpTools> logger,
         [Description("文章标题")] string title,
         [Description("文章正文（可包含绝对图片路径，将自动识别并上传）")] string content,
-        [Description("图片路径列表（本地绝对路径，可选）")] string[]? images = null,
-        [Description("社区名称列表（可选，必须是已有社区）")] string[]? communities = null,
-        [Description("话题标签列表（可选）")] string[]? tags = null)
+        [Description("社区名称列表（必须是已有社区，最多2个）")] string[] communities,
+        [Description("话题标签列表（可选，最多5个）")] string[]? tags = null)
     {
         logger.LogInformation("执行工具: publish_article");
+
+        if (communities.Length > 2)
+        {
+            return "❌ communities 最多只能传 2 个";
+        }
+
+        if (tags is { Length: > 5 })
+        {
+            return "❌ tags 最多只能传 5 个";
+        }
         
         var args = new PublishArticleArgs
         {
             Title = title,
             Content = content,
-            Images = images?.ToList() ?? [],
-            Communities = communities?.ToList() ?? [],
+            Communities = [.. communities],
             Tags = tags?.ToList() ?? []
         };
         
