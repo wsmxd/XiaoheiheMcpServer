@@ -365,7 +365,7 @@ public class ArticlePublishService : BrowserBase
         foreach (var match in matches)
         {
             // 匹配前的文本
-            var textBefore = content.Substring(lastPos, match.Index - lastPos).Trim();
+            var textBefore = content[lastPos..match.Index].Trim();
             if (!string.IsNullOrEmpty(textBefore))
             {
                 segments.Add((textBefore, null));
@@ -383,7 +383,7 @@ public class ArticlePublishService : BrowserBase
         }
 
         // 最后的文本
-        var textAfter = content.Substring(lastPos).Trim();
+        var textAfter = content[lastPos..].Trim();
         if (!string.IsNullOrEmpty(textAfter))
         {
             segments.Add((textAfter, null));

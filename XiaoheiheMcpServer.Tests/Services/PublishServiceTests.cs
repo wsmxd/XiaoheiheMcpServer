@@ -113,28 +113,6 @@ public class PublishServiceTests : IAsyncDisposable
         Assert.Contains("tags", result.Content[0].Text, StringComparison.OrdinalIgnoreCase);
     }
 
-    [Fact(Skip = "依赖真实网页/Playwright 环境，默认跳过")]
-    public async Task PublishArticleAsync_WithValidArgs_ShouldReturnResult()
-    {
-        // Arrange
-        _service = new PublishService(_loggerMock.Object, headless: true);
-        var args = new PublishArticleArgs
-        {
-            Title = "测试文章",
-            Content = "这是一篇测试文章内容",
-            Images = [],
-            Tags = ["测试", "文章"]
-        };
-
-        // Act
-        var result = await _service.PublishArticleAsync(args);
-
-        // Assert
-        Assert.NotNull(result);
-        Assert.NotNull(result.Content);
-        Assert.Single(result.Content);
-    }
-
     [Fact]
     public async Task PublishVideoAsync_WithNonExistentFile_ShouldReturnError()
     {

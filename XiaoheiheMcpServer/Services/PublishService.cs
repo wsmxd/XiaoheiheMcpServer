@@ -294,22 +294,22 @@ public class PublishService : BrowserBase
                 "div[role='button']:has-text('发布')"
             };
 
-            // bool published = false;
-            // foreach (var selector in publishSelectors)
-            // {
-            //     try
-            //     {
-            //         var publishBtn = await _page.QuerySelectorAsync(selector);
-            //         if (publishBtn != null && await publishBtn.IsVisibleAsync())
-            //         {
-            //             _logger.LogInformation($"找到发布按钮: {selector}");
-            //             await publishBtn.ClickAsync();
-            //             published = true;
-            //             break;
-            //         }
-            //     }
-            //     catch { }
-            // }
+            bool published = false;
+            foreach (var selector in publishSelectors)
+            {
+                try
+                {
+                    var publishBtn = await _page.QuerySelectorAsync(selector);
+                    if (publishBtn != null && await publishBtn.IsVisibleAsync())
+                    {
+                        _logger.LogInformation($"找到发布按钮: {selector}");
+                        await publishBtn.ClickAsync();
+                        published = true;
+                        break;
+                    }
+                }
+                catch { }
+            }
 
             await Task.Delay(3000);
             await SaveCookiesAsync();
@@ -319,7 +319,7 @@ public class PublishService : BrowserBase
             {
                 Content =
                 [
-                    new() { Type = "text", Text = false 
+                    new() { Type = "text", Text = published
                         ? $"✅ 发布成功！\n标题: {args.Title}\n内容已发布到小黑盒" 
                         : $"⚠️ 内容已填写，但未能自动点击发布按钮，请手动检查并发布\n标题: {args.Title}" }
                 ]
@@ -333,117 +333,6 @@ public class PublishService : BrowserBase
                 Content =
                 [
                     new() { Type = "text", Text = $"❌ 发布失败: {ex.Message}\n\n建议：\n1. 确保已登录\n2. 检查图片文件路径是否正确\n3. 尝试手动访问发布页面确认页面结构" }
-                ],
-                IsError = true
-            };
-        }
-    }
-
-    /// <summary>
-    /// 发布文章（article，长文章形式）
-    /// </summary>
-    public async Task<McpToolResult> PublishArticleAsync(PublishArticleArgs args)
-    {
-        try
-        {
-            const int MaxCommunities = 2;
-            const int MaxTags = 5;
-
-            if (args.Communities.Count > MaxCommunities)
-            {
-                return new McpToolResult
-                {
-                    IsError = true,
-                    Content =
-                    [
-                        new() { Type = "text", Text = $"❌ communities 最多只能传 {MaxCommunities} 个（当前: {args.Communities.Count}）" }
-                    ]
-                };
-            }
-
-            if (args.Tags.Count > MaxTags)
-            {
-                return new McpToolResult
-                {
-                    IsError = true,
-                    Content =
-                    [
-                        new() { Type = "text", Text = $"❌ tags 最多只能传 {MaxTags} 个（当前: {args.Tags.Count}）" }
-                    ]
-                };
-            }
-
-            _logger.LogInformation($"开始发布文章: {args.Title}");
-            await InitializeBrowserAsync();
-
-            // 访问文章编辑器页面（article，不是image_text）
-            await _page!.GotoAsync($"{BaseUrl}/creator/editor/draft/article");
-            await _page.WaitForLoadStateAsync(LoadState.NetworkIdle);
-            await Task.Delay(2000);
-
-            // 填写标题
-            var titleSelector = "input[placeholder*='标题'], [class*='title'] input, input[name*='title']";
-            await _page.WaitForSelectorAsync(titleSelector, new() { Timeout = 10000 });
-            await _page.FillAsync(titleSelector, args.Title);
-            await Task.Delay(500);
-
-            // 填写内容（文章编辑器通常使用富文本编辑器）
-            var contentSelector = "div[contenteditable='true'], [class*='editor-content'], [class*='rich-editor'], textarea";
-            var contentText = args.Content;
-            
-            if (args.Tags.Any())
-            {
-                contentText += "\n" + string.Join(" ", args.Tags.Select(t => $"#{t}"));
-            }
-            
-            // 文章编辑器通常是contenteditable的div
-            try
-            {
-                var editorElement = await _page.WaitForSelectorAsync(contentSelector, new() { Timeout = 5000 }) ?? throw new Exception("未找到文章编辑器内容区域");
-                await editorElement.ClickAsync(); // 聚焦编辑器
-                await Task.Delay(300);
-                
-                // 使用键盘输入以保持格式
-                await _page.Keyboard.TypeAsync(contentText);
-            }
-            catch
-            {
-                // 备用方案：直接填充
-                await _page.FillAsync(contentSelector, contentText);
-            }
-            await Task.Delay(500);
-
-            // 上传图片
-            if (args.Images.Any())
-            {
-                await UploadImagesAsync(args.Images.ToArray());
-            }
-
-            // 点击发布按钮
-            var publishSelector = "button[class*='publish'], button:has-text('发布'), button:has-text('提交')";
-            await _page.WaitForSelectorAsync(publishSelector);
-            await _page.ClickAsync(publishSelector);
-            await Task.Delay(3000);
-
-            await SaveCookiesAsync();
-
-            _logger.LogInformation("文章发布成功");
-            return new McpToolResult
-            {
-                Content =
-                [
-                    new() { Type = "text", Text = $"✅ 文章发布成功！\n标题: {args.Title}\n文章已发布到小黑盒" }
-                ]
-            };
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "发布文章失败");
-            return new McpToolResult
-            {
-                Content =
-                [
-                    new() { Type = "text", Text = $"❌ 发布文章失败: {ex.Message}" }
                 ],
                 IsError = true
             };
