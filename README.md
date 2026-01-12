@@ -9,9 +9,9 @@
 **本项目目前处于开发中**，部分功能尚未完全验证：
 - ✅ 检查登录状态 - 已实现并测试
 - ⚠️ 二维码登录 - 已实现但未验证
-- ⚠️ 交互式登录 - 已实现但未验证
+- ✅ 交互式登录 - 已实现
 - ✅ 发布图文内容 - 已实现（包括图片、社区、话题）
-- ⚠️ 发布文章 - 已实现但未验证
+- ✅ 发布文章 - 已实现
 - ⚠️ 发布视频 - 已实现但未验证
 - ✅ 发布评论 - 已验证
 - ✅ 搜索内容 - 已实现并测试
@@ -21,9 +21,9 @@
 
 - ✅ 检查登录状态
 - ⚠️ 二维码登录（待验证）
-- ⚠️ 交互式登录（待验证）
+- ✅ 交互式登录
 - ✅ 发布图文内容（支持图片、社区、话题）
-- ⚠️ 发布文章（待验证）
+- ✅ 发布文章
 - ⚠️ 发布视频（待验证）
 - ✅ 发布评论
 - ✅ 搜索内容
@@ -39,22 +39,35 @@
 
 ## 安装步骤
 
-### 1. 克隆仓库
+### 方式一：使用发布的可执行文件（推荐）
 
+1. 从 [Releases](https://github.com/wsmxd/XiaoheiheMcpServer/releases) 下载最新的 `XiaoheiheMcpServer-win-x64.zip`
+
+2. 解压到任意目录，例如：`D:\Tools\XiaoheiheMcpServer\`
+
+3. 安装 Playwright 浏览器（首次运行必需）：
+```powershell
+cd D:\Tools\XiaoheiheMcpServer
+pwsh bin/Debug/net10.0/playwright.ps1 install chromium
+```
+
+4. 配置到 MCP 客户端（见下方配置章节）
+
+### 方式二：从源码构建
+
+1. **克隆仓库**
 ```bash
 git clone https://github.com/wsmxd/XiaoheiheMcpServer.git
 cd XiaoheiheMcpServer
 ```
 
-### 2. 安装依赖
-
+2. **安装依赖**
 ```bash
 cd XiaoheiheMcpServer
 dotnet restore
 ```
 
-### 3. 安装 Playwright 浏览器
-
+3. **安装 Playwright 浏览器**
 ```bash
 # 编译项目
 dotnet build
@@ -63,100 +76,115 @@ dotnet build
 pwsh bin/Debug/net10.0/playwright.ps1 install chromium
 ```
 
-## 使用方法
+4. **发布（可选）**
+```bash
+dotnet publish -c Release
+```
 
-### 方式一：命令行运行
+发布后的文件位于：`XiaoheiheMcpServer\bin\Release\net10.0\win-x64\publish\`
 
-**无头模式（默认）**:
+## MCP 客户端配置
+
+### Claude Desktop 配置
+
+编辑配置文件（`%APPDATA%\Claude\claude_desktop_config.json`）：
+
+**使用发布的 exe（推荐）**：
+```json
+{
+  "mcpServers": {
+    "xiaoheihe": {
+      "command": "D:\\Tools\\XiaoheiheMcpServer\\XiaoheiheMcpServer.exe",
+      "args": []
+    }
+  }
+}
+```
+
+**从源码运行（开发模式）**：
+```json
+{
+  "mcpServers": {
+    "xiaoheihe": {
+      "command": "dotnet",
+      "args": [
+        "run",
+        "--project",
+        "D:\\Projects\\XiaoheiheMcpServer\\XiaoheiheMcpServer\\XiaoheiheMcpServer.csproj"
+      ]
+    }
+  }
+}
+```
+
+### Cursor 配置
+
+编辑配置文件（`.cursor/mcp.json`）：
+
+**使用发布的 exe（推荐）**：
+```json
+{
+  "mcpServers": {
+    "xiaoheihe": {
+      "command": "D:\\Tools\\XiaoheiheMcpServer\\XiaoheiheMcpServer.exe",
+      "args": []
+    }
+  }
+}
+```
+
+**从源码运行（开发模式）**：
+```json
+{
+  "mcpServers": {
+    "xiaoheihe": {
+      "command": "dotnet",
+      "args": [
+        "run",
+        "--project",
+        "D:\\Projects\\XiaoheiheMcpServer\\XiaoheiheMcpServer\\XiaoheiheMcpServer.csproj"
+      ]
+    }
+  }
+}
+```
+
+**注意**：
+- 将路径替换为你的实际安装/项目路径
+- Windows 路径使用双反斜杠 `\\` 或单斜杠 `/`
+- 配置后需重启客户端
+
+## 首次使用
+
+1. **自动模式切换**：
+   - 首次运行时会自动使用**有头模式**（显示浏览器窗口）
+   - 完成登录后，Cookie 会自动保存到 `data/cookies.json`
+   - 后续运行自动切换为**无头模式**（后台运行）
+
+2. **推荐登录方式**：
+   - 使用 `interactive_login` 工具（在浏览器中手动登录）
+   - 支持手机验证码、密码、扫码等多种方式
+
+3. **测试连接**：
+   ```
+   请帮我检查小黑盒登录状态
+   ```
+
+## 命令行使用（可选）
+
+如果需要单独测试，可以直接运行：
+
+**发布版**：
+```powershell
+cd D:\Tools\XiaoheiheMcpServer
+.\XiaoheiheMcpServer.exe
+```
+
+**开发版**：
 ```bash
 cd XiaoheiheMcpServer
 dotnet run
 ```
-
-**有界面模式（调试用）**:
-```bash
-cd XiaoheiheMcpServer
-dotnet run -- --no-headless
-```
-
-### 方式二：在 Claude Desktop 中配置
-
-编辑 Claude Desktop 配置文件：
-
-**Windows**: `%APPDATA%\Claude\claude_desktop_config.json`
-**macOS**: `~/Library/Application Support/Claude/claude_desktop_config.json`
-
-添加以下配置：
-
-```json
-{
-  "mcpServers": {
-    "xiaoheihe": {
-      "command": "dotnet",
-      "args": [
-        "run",
-        "--project",
-        "<你的项目路径>/XiaoheiheMcpServer/XiaoheiheMcpServer.csproj"
-      ],
-      "env": {}
-    }
-  }
-}
-```
-
-**注意**：请将 `<你的项目路径>` 替换为你的实际项目路径。
-
-示例：
-- Windows: `"D:/Projects/XiaoheiheMcpServer/XiaoheiheMcpServer.csproj"`
-- macOS/Linux: `"/home/user/XiaoheiheMcpServer/XiaoheiheMcpServer.csproj"`
-
-重启 Claude Desktop 后，服务器将自动启动。
-
-### 方式三：在其他 MCP 客户端中使用
-
-任何支持 stdio 传输的 MCP 客户端都可以使用本服务器。启动命令为：
-
-```bash
-dotnet run --project <项目路径>/XiaoheiheMcpServer.csproj
-```
-
-### 3. 配置 MCP 客户端
-
-在你的 MCP 客户端（如 Claude Desktop、Cursor 等）配置文件中添加：
-
-**Claude Desktop (claude_desktop_config.json)**:
-```json
-{
-  "mcpServers": {
-    "xiaoheihe": {
-      "command": "dotnet",
-      "args": [
-        "run",
-        "--project",
-        "<你的项目路径>/XiaoheiheMcpServer/XiaoheiheMcpServer.csproj"
-      ]
-    }
-  }
-}
-```
-
-**Cursor (.cursor/mcp.json)**:
-```json
-{
-  "mcpServers": {
-    "xiaoheihe": {
-      "command": "dotnet",
-      "args": [
-        "run",
-        "--project",
-        "<你的项目路径>/XiaoheiheMcpServer/XiaoheiheMcpServer.csproj"
-      ]
-    }
-  }
-}
-```
-
-## 可用工具
 
 ### 1. check_login_status
 检查小黑盒登录状态
@@ -168,7 +196,7 @@ dotnet run --project <项目路径>/XiaoheiheMcpServer.csproj
 交互式登录（打开浏览器手动登录）
 - 参数：无
 - 返回：登录结果
-- 状态：⚠️ 待验证
+- 状态：✅ 手动进行登录就行
 
 ### 3. get_login_qrcode
 获取登录二维码
@@ -182,18 +210,18 @@ dotnet run --project <项目路径>/XiaoheiheMcpServer.csproj
   - `title`: 标题（必需）
   - `content`: 内容（必需）
   - `images`: 图片路径列表（可选，本地绝对路径）
-  - `communities`: 社区名称列表（可选，必须是已有的社区）
-  - `tags`: 话题标签列表（可选）
+  - `communities`: 社区名称列表（可选，必须是已有的社区，**最多2个**）
+  - `tags`: 话题标签列表（可选，**最多5个**）
 - 状态：✅ 已实现（图片、社区、话题功能已添加）
 
 ### 5. publish_article
 发布文章到小黑盒（长文章形式）
 - 参数：
   - `title`: 标题（必需）
-  - `content`: 内容（必需）
-  - `images`: 图片路径列表（可选）
-  - `tags`: 标签列表（可选）
-- 状态：⚠️ 待验证
+  - `content`: 内容（必需，可包含本地图片绝对路径，将自动识别并上传）
+  - `communities`: 社区名称列表（必需，必须是已有的社区，**最多2个**）
+  - `tags`: 标签列表（可选，**最多5个**）
+- 状态：✅ 已验证
 
 ### 6. publish_video
 发布视频到小黑盒
@@ -219,10 +247,11 @@ dotnet run --project <项目路径>/XiaoheiheMcpServer.csproj
 获取帖子 123456 的详细信息
 
 ### 8. get_post_detail
-获取帖子详情
+获取帖子/文章详情
 - 参数：
-  - `postId`: 帖子ID（必需）
+  - `postId`: 帖子/文章ID（必需）
 - 返回：封面图、标题、正文、标签、评论等详细信息
+- 支持：图文帖子和长文章两种类型
 - 状态：✅ 已验证
 
 ### 9. post_comment
@@ -230,6 +259,7 @@ dotnet run --project <项目路径>/XiaoheiheMcpServer.csproj
 - 参数：
   - `postId`: 帖子ID（必需）
   - `content`: 评论内容（必需）
+  - `images`: 评论图片路径列表（可选，本地绝对路径）
 - 状态：✅ 已验证
 
 ## 使用示例
@@ -271,26 +301,6 @@ dotnet test
 - 6 个服务层测试（XiaoheiheServiceTests）
 - 9 个模型验证测试（ModelsTests）
 
-### 项目结构
-
-```
-XiaoheiheMcpServer/
-├── Program.cs              # MCP 服务器入口（使用 Host Builder）
-├── Models/
-│   ├── XiaoheiheModels.cs  # 数据模型
-│   └── McpToolResult.cs    # MCP 工具结果封装
-├── Services/
-│   └── XiaoheiheService.cs # 核心业务逻辑
-└── data/
-    └── cookies.json        # Cookie 存储
-
-XiaoheiheMcpServer.Tests/
-├── Services/
-│   └── XiaoheiheServiceTests.cs  # 服务测试
-└── Models/
-    └── ModelsTests.cs            # 模型测试
-```
-
 ## 注意事项
 
 1. **浏览器安装**: 首次运行会下载 Chromium 浏览器（约 150MB）
@@ -307,7 +317,7 @@ XiaoheiheMcpServer.Tests/
 
 ### 问题：登录失败或 Cookie 过期
 - 删除 `data/cookies.json` 文件
-- 重新运行服务器并调用 `get_login_qrcode` 工具
+- 重新运行服务器并调用 `get_login_qrcode` 工具或者使用命令行参数`--no-headless`来使用有头模式进行重新登录
 
 ### 问题：找不到元素
 - 小黑盒网站可能更新了页面结构
