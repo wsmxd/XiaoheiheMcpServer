@@ -85,27 +85,30 @@ dotnet publish -c Release
 
 ## MCP 客户端配置
 
-### Claude Desktop 配置
+### VSCode 配置
 
-编辑配置文件（`%APPDATA%\Claude\claude_desktop_config.json`）：
+在任意目录下建立.vscode文件夹，创建mcp.json文件：
 
 **使用发布的 exe（推荐）**：
 ```json
 {
-  "mcpServers": {
-    "xiaoheihe": {
-      "command": "D:\\Tools\\XiaoheiheMcpServer\\XiaoheiheMcpServer.exe",
-      "args": []
-    }
-  }
+	"servers": {
+		"xiaoheihe": {
+			"type": "stdio",
+			"command": "D:\\Tools\\XiaoheiheMcpServer\\XiaoheiheMcpServer\\bin\\Release\\net10.0\\win-x64\\publish\\XiaoheiheMcpServer.exe",
+			"args": []
+		}
+	},
+	"inputs": []
 }
 ```
 
 **从源码运行（开发模式）**：
 ```json
 {
-  "mcpServers": {
+  "servers": {
     "xiaoheihe": {
+      "type": "stdio",
       "command": "dotnet",
       "args": [
         "run",
@@ -113,7 +116,8 @@ dotnet publish -c Release
         "D:\\Projects\\XiaoheiheMcpServer\\XiaoheiheMcpServer\\XiaoheiheMcpServer.csproj"
       ]
     }
-  }
+  },
+  "inputs": []
 }
 ```
 
@@ -228,9 +232,10 @@ dotnet run
 - 参数：
   - `videoPath`: 视频文件路径（必需）
   - `title`: 标题（必需）
-  - `description`: 描述（必需）
+  - `content`: 内容（必需）
   - `coverImagePath`: 封面图片路径（可选）
-  - `tags`: 标签列表（可选）
+  - `communities`: 社区名称列表（可选，必须是已有的社区，**最多2个**）
+  - `tags`: 标签列表（可选，**最多5个**）
 - 状态：⚠️ 待验证
 
 ### 7. search_content
@@ -287,19 +292,6 @@ dotnet run
 - Cookies 存储在 `data/cookies.json`
 - 登录后会自动保存 Cookies，下次启动无需重新登录
 
-## 开发与测试
-
-### 运行单元测试
-
-本项目包含完整的单元测试套件：
-
-```bash
-dotnet test
-```
-
-测试覆盖：
-- 6 个服务层测试（XiaoheiheServiceTests）
-- 9 个模型验证测试（ModelsTests）
 
 ## 注意事项
 

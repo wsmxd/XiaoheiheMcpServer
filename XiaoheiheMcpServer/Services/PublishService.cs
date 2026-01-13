@@ -454,7 +454,7 @@ public class PublishService : BrowserBase
             try
             {
                 var updateCoverButton = await _page.QuerySelectorAsync(".video-uploader__loaded-operation-btn");
-                if (updateCoverButton != null)
+                if (updateCoverButton != null && !string.IsNullOrWhiteSpace(args.CoverImagePath))
                 {
                     await updateCoverButton.ClickAsync();
                     await Task.Delay(400);

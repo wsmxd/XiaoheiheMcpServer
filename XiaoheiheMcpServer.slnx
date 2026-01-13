@@ -1,4 +1,3 @@
 <Solution>
-  <Project Path="XiaoheiheMcpServer.Tests/XiaoheiheMcpServer.Tests.csproj" />
   <Project Path="XiaoheiheMcpServer/XiaoheiheMcpServer.csproj" />
 </Solution>
