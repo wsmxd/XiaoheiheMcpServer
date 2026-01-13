@@ -39,49 +39,34 @@
 
 ## 安装步骤
 
-### 方式一：使用发布的可执行文件（推荐）
+### 方式一：使用发布的单文件 exe（推荐）
 
-1. 从 [Releases](https://github.com/wsmxd/XiaoheiheMcpServer/releases) 下载最新的 `XiaoheiheMcpServer-win-x64.zip`
-
+1. 从 Releases 下载最新的 `XiaoheiheMcpServer-win-x64.zip`
 2. 解压到任意目录，例如：`D:\Tools\XiaoheiheMcpServer\`
+3. 运行初始化脚本（会检查 .NET 运行时并安装 Playwright 浏览器）：
+  - PowerShell: `./setup.ps1`
+  - CMD: `setup.bat`
+4. 运行服务器：`./XiaoheiheMcpServer.exe`（首次登录可加 `--no-headless`）
 
-3. 安装 Playwright 浏览器（首次运行必需）：
-```powershell
-cd D:\Tools\XiaoheiheMcpServer
-pwsh bin/Debug/net10.0/playwright.ps1 install chromium
-```
-
-4. 配置到 MCP 客户端（见下方配置章节）
+> 说明：发布包内只包含单个 exe + 两个初始化脚本，依赖下载在首次安装时完成。
 
 ### 方式二：从源码构建
 
-1. **克隆仓库**
-```bash
-git clone https://github.com/wsmxd/XiaoheiheMcpServer.git
-cd XiaoheiheMcpServer
-```
-
-2. **安装依赖**
-```bash
-cd XiaoheiheMcpServer
-dotnet restore
-```
-
-3. **安装 Playwright 浏览器**
-```bash
-# 编译项目
-dotnet build
-
-# 安装 Chromium 浏览器
-pwsh bin/Debug/net10.0/playwright.ps1 install chromium
-```
-
-4. **发布（可选）**
-```bash
-dotnet publish -c Release
-```
-
-发布后的文件位于：`XiaoheiheMcpServer\bin\Release\net10.0\win-x64\publish\`
+1. 克隆仓库并还原依赖
+  ```bash
+  git clone https://github.com/wsmxd/XiaoheiheMcpServer.git
+  cd XiaoheiheMcpServer
+  dotnet restore
+  ```
+2. 构建并安装 Playwright 浏览器
+  ```bash
+  dotnet build
+  playwright install chromium
+  ```
+3. 运行（开发模式）
+  ```bash
+  dotnet run --project XiaoheiheMcpServer/XiaoheiheMcpServer.csproj
+  ```
 
 ## MCP 客户端配置
 
@@ -95,7 +80,7 @@ dotnet publish -c Release
 	"servers": {
 		"xiaoheihe": {
 			"type": "stdio",
-			"command": "D:\\Tools\\XiaoheiheMcpServer\\XiaoheiheMcpServer\\bin\\Release\\net10.0\\win-x64\\publish\\XiaoheiheMcpServer.exe",
+			"command": "D:\\Tools\\XiaoheiheMcpServer\\XiaoheiheMcpServer.exe",
 			"args": []
 		}
 	},
@@ -160,23 +145,28 @@ dotnet publish -c Release
 
 ## 首次使用
 
-1. **自动模式切换**：
-   - 首次运行时会自动使用**有头模式**（显示浏览器窗口）
-   - 完成登录后，Cookie 会自动保存到 `data/cookies.json`
-   - 后续运行自动切换为**无头模式**（后台运行）
+1. **先跑一次初始化脚本**（发布包内已附带）
+  - PowerShell: `./setup.ps1`
+  - CMD: `setup.bat`
+  - 作用：检测/提示安装 .NET 运行时，安装 Playwright 浏览器
 
-2. **推荐登录方式**：
-   - 使用 `interactive_login` 工具（在浏览器中手动登录）
-   - 支持手机验证码、密码、扫码等多种方式
+2. **自动模式切换**：
+  - 首次运行会自动使用**有头模式**（显示浏览器窗口）
+  - 完成登录后，Cookie 自动保存到 `data/cookies.json`
+  - 后续运行自动切换为**无头模式**（后台运行）
 
-3. **测试连接**：
+3. **推荐登录方式**：
+  - 使用 `interactive_login` 工具（在浏览器中手动登录）
+  - 支持手机验证码、密码、扫码等多种方式
+
+4. **测试连接**：
    ```
    请帮我检查小黑盒登录状态
    ```
 
 ## 命令行使用（可选）
 
-如果需要单独测试，可以直接运行：
+如果需要单独测试，可以直接运行（首次请先执行 `setup.ps1` 或 `setup.bat` 安装依赖）：
 
 **发布版**：
 ```powershell
@@ -233,7 +223,7 @@ dotnet run
   - `videoPath`: 视频文件路径（必需）
   - `title`: 标题（必需）
   - `content`: 内容（必需）
-  - `coverImagePath`: 封面图片路径（可选）
+  - `coverImagePath`: 封面图片路径（可选，建议提供）
   - `communities`: 社区名称列表（可选，必须是已有的社区，**最多2个**）
   - `tags`: 标签列表（可选，**最多5个**）
 - 状态：⚠️ 待验证
@@ -304,8 +294,8 @@ dotnet run
 ## 故障排查
 
 ### 问题：服务器无法启动
-- 检查 .NET 10.0 SDK 是否已安装
-- 确认 Playwright 浏览器已安装：`pwsh bin/Debug/net10.0/playwright.ps1 install chromium`
+- 检查 .NET 10.0 运行时是否已安装（缺失可通过 `setup.ps1`/`setup.bat` 提示的链接安装）
+- 重新运行 `setup.ps1` 或执行 `playwright install chromium` 安装浏览器
 
 ### 问题：登录失败或 Cookie 过期
 - 删除 `data/cookies.json` 文件
@@ -322,7 +312,6 @@ dotnet run
 - Microsoft.Extensions.Hosting (依赖注入)
 - Playwright (浏览器自动化)
 - Newtonsoft.Json
-- xUnit + Moq (测试)
 
 ## License
 
