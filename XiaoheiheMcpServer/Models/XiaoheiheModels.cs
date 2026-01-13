@@ -27,9 +27,9 @@ public class PublishContentArgs
 {
     public string Title { get; set; } = string.Empty;
     public string Content { get; set; } = string.Empty;
-    public List<string> Images { get; set; } = new();
-    public List<string> Communities { get; set; } = new();
-    public List<string> Tags { get; set; } = new();
+    public List<string> Images { get; set; } = [];
+    public List<string> Communities { get; set; } = [];
+    public List<string> Tags { get; set; } = [];
 }
 
 /// <summary>
@@ -39,9 +39,9 @@ public class PublishArticleArgs
 {
     public string Title { get; set; } = string.Empty;
     public string Content { get; set; } = string.Empty;
-    public List<string> Images { get; set; } = new();
-    public List<string> Communities { get; set; } = new();
-    public List<string> Tags { get; set; } = new();
+    public List<string> Images { get; set; } = [];
+    public List<string> Communities { get; set; } = [];
+    public List<string> Tags { get; set; } = [];
 }
 
 /// <summary>
@@ -50,9 +50,10 @@ public class PublishArticleArgs
 public class PublishVideoArgs
 {
     public string Title { get; set; } = string.Empty;
-    public string Description { get; set; } = string.Empty;
+    public string Content { get; set; } = string.Empty;
     public string VideoPath { get; set; } = string.Empty;
-    public string? CoverImagePath { get; set; }
+    public string CoverImagePath { get; set; } = string.Empty;
+    public List<string> Communities { get; set; } = [];
     public List<string> Tags { get; set; } = [];
 }
 
@@ -63,7 +64,7 @@ public class CommentArgs
 {
     public string PostId { get; set; } = string.Empty;
     public string Content { get; set; } = string.Empty;
-    public List<string> Images { get; set; } = new();
+    public List<string> Images { get; set; } = [];
 }
 
 /// <summary>
@@ -108,13 +109,13 @@ public class PostDetail
     public string Content { get; set; } = string.Empty;
     
     /// <summary>标签列表</summary>
-    public List<string> Tags { get; set; } = new();
+    public List<string> Tags { get; set; } = [];
     
     /// <summary>评论总数</summary>
     public int CommentCount { get; set; } = 0;
     
     /// <summary>评论列表</summary>
-    public List<CommentItem> Comments { get; set; } = new();
+    public List<CommentItem> Comments { get; set; } = [];
 }
 
 /// <summary>
@@ -153,5 +154,5 @@ public class SearchResultItem
     public int LikeCount { get; set; } = 0;
     
     /// <summary>图片列表</summary>
-    public List<string> ImageUrls { get; set; } = new();
+    public List<string> ImageUrls { get; set; } = [];
 }

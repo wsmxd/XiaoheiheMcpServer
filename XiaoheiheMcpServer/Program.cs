@@ -196,19 +196,31 @@ file class XiaoheiheMcpTools
         XiaoheiheService service,
         ILogger<XiaoheiheMcpTools> logger,
         [Description("视频标题")] string title,
-        [Description("视频描述")] string description,
+        [Description("视频正文/描述")] string content,
         [Description("视频文件路径（本地绝对路径）")] string videoPath,
-        [Description("封面图路径（可选，本地绝对路径）")] string? coverImagePath = null,
-        [Description("标签列表（可选）")] string[]? tags = null)
+        [Description("视频封面图路径（本地绝对路径）")] string coverImagePath,
+        [Description("社区名称列表（必须是已有的社区，最多2个）")] string[]? communities = null,
+        [Description("话题标签列表（最多5个）")] string[]? tags = null)
     {
         logger.LogInformation("执行工具: publish_video");
+
+        if (communities is { Length: > 2 })
+        {
+            return "❌ communities 最多只能传 2 个";
+        }
+
+        if (tags is { Length: > 5 })
+        {
+            return "❌ tags 最多只能传 5 个";
+        }
         
         var args = new PublishVideoArgs
         {
             Title = title,
-            Description = description,
+            Content = content,
             VideoPath = videoPath,
             CoverImagePath = coverImagePath,
+            Communities = communities?.ToList() ?? [],
             Tags = tags?.ToList() ?? []
         };
         
