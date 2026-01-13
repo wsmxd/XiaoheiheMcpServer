@@ -9,6 +9,8 @@ namespace XiaoheiheMcpServer.Services;
 /// </summary>
 public class LoginService : BrowserBase
 {
+    private CancellationTokenSource? _loginMonitorCts;
+
     public LoginService(ILogger<LoginService> logger, bool headless = true) 
         : base(logger, headless)
     {
@@ -24,20 +26,38 @@ public class LoginService : BrowserBase
             _logger.LogInformation("检查登录状态...");
             await InitializeBrowserAsync();
             
-            // 访问首页
+            // 优化：检查当前页面 URL，避免不必要的导航
             const string checkUrl = "https://www.xiaoheihe.cn/app/bbs/home";
-            _logger.LogInformation("访问首页: {Url}", checkUrl);
-            await _page!.GotoAsync(checkUrl);
-            await _page.WaitForLoadStateAsync(LoadState.NetworkIdle);
-            await Task.Delay(1000);
-
-            // 查找用户信息元素 p.user-box__username
-            var userElement = await _page.QuerySelectorAsync("p.user-box__username");
+            var currentUrl = _page!.Url;
             
-            if (userElement != null)
+            // 只有当前页面不是小黑盒域名时才需要导航
+            if (string.IsNullOrEmpty(currentUrl) || !currentUrl.Contains("xiaoheihe.cn"))
             {
-                var username = await userElement.TextContentAsync();
-                username = (username ?? "xiaoheihe-user").Trim();
+                _logger.LogInformation("当前页面不是小黑盒域名，导航至首页: {Url}", checkUrl);
+                await _page.GotoAsync(checkUrl);
+                await _page.WaitForLoadStateAsync(LoadState.NetworkIdle);
+                await Task.Delay(1000);
+            }
+            else
+            {
+                _logger.LogInformation("当前已在小黑盒页面 ({CurrentUrl})，跳过导航", currentUrl);
+                // 等待页面稳定
+                await Task.Delay(500);
+            }
+
+            // 使用 JavaScript 直接判断登录状态并获取用户名
+            var (isLoggedIn, username) = await _page.EvaluateAsync<(bool isLoggedIn, string username)>(@"
+                () => {
+                    const el = document.querySelector('p.user-box__username');
+                    if (el && el.textContent.trim()) {
+                        return { isLoggedIn: true, username: el.textContent.trim() };
+                    }
+                    return { isLoggedIn: false, username: '' };
+                }
+            ");
+            
+            if (isLoggedIn)
+            {
                 _logger.LogInformation("已登录，用户: {Username}", username);
                 return new LoginStatus
                 {
@@ -177,44 +197,39 @@ public class LoginService : BrowserBase
 
             // 点击后需要等待二维码 canvas 渲染（增加延迟确保二维码完全加载）
             _logger.LogInformation("等待二维码 canvas 渲染...");
-            await Task.Delay(1000);
+            await Task.Delay(2000); // 增加延迟到2秒，确保二维码完全渲染
             
             // 等待并获取二维码 canvas 元素
             await _page.WaitForSelectorAsync("canvas#login-qrcode", new() { Timeout = 15000 });
             var canvas = await _page.QuerySelectorAsync("canvas#login-qrcode") 
                          ?? throw new Exception("未找到二维码 canvas（canvas#login-qrcode）");
             
-            _logger.LogInformation("已找到二维码 canvas 元素");
-            string? dataUrl = null;
-            try
+            _logger.LogInformation("已找到二维码 canvas 元素，准备获取二维码数据");
+            
+            // 直接调用 toDataURL() 获取二维码 Base64 数据（与浏览器控制台测试一致）
+            var dataUrl = await canvas.EvaluateAsync<string>("c => c.toDataURL()");
+            
+            if (string.IsNullOrWhiteSpace(dataUrl) || !dataUrl.StartsWith("data:image", StringComparison.OrdinalIgnoreCase))
             {
-                dataUrl = await canvas.EvaluateAsync<string>("c => c.toDataURL('image/png')");
+                throw new Exception("canvas.toDataURL() 返回的数据格式不正确");
             }
-            catch (Exception ex)
-            {
-                _logger.LogDebug(ex, "canvas.toDataURL 失败，尝试截图方式获取二维码");
-            }
+            
+            // 提取 Base64 部分（去掉 "data:image/png;base64," 前缀）
+            var qrCanvasBase64 = dataUrl.Split(',')[1];
+            _logger.LogInformation("已成功从 canvas.toDataURL() 获取到 Base64 二维码（长度: {Length} 字符）", qrCanvasBase64.Length);
 
-            string qrCanvasBase64;
-            if (!string.IsNullOrWhiteSpace(dataUrl) && dataUrl.StartsWith("data:image", StringComparison.OrdinalIgnoreCase))
-            {
-                qrCanvasBase64 = dataUrl.Split(',')[1];
-                _logger.LogInformation("已从 canvas.toDataURL 获取到 Base64 二维码");
-            }
-            else
-            {
-                var screenshot = await canvas.ScreenshotAsync();
-                qrCanvasBase64 = Convert.ToBase64String(screenshot);
-                _logger.LogInformation("已通过截图方式获取到 Base64 二维码");
-            }
+            _logger.LogInformation("二维码获取成功，返回给用户扫描");
 
-            _logger.LogInformation("二维码获取成功，等待扫码登录...");
-            await WaitForLoginAsync();
+            // 创建用于管理监听任务的 CancellationTokenSource
+            _loginMonitorCts = new CancellationTokenSource();
+            
+            // 启动后台任务监听登录状态，登录成功后自动保存 Cookie 并取消任务
+            _ = Task.Run(async () => await MonitorAndSaveLoginAsync(_loginMonitorCts.Token));
 
             return new QrCodeInfo
             {
                 QrCodeBase64 = qrCanvasBase64,
-                ExpireTime = DateTime.Now.AddMinutes(5),
+                ExpireTime = DateTime.Now.AddMinutes(2),
                 Message = "请使用小黑盒APP扫描二维码登录"
             };
         }
@@ -225,6 +240,68 @@ public class LoginService : BrowserBase
             {
                 Message = $"获取登录二维码失败: {ex.Message}\n建议使用 interactive_login 工具进行首次登录"
             };
+        }
+    }
+
+    /// <summary>
+    /// 后台监听登录状态，登录成功后自动保存 Cookie 并取消任务
+    /// </summary>
+    private async Task MonitorAndSaveLoginAsync(CancellationToken cancellationToken)
+    {
+        try
+        {
+            _logger.LogInformation("后台监听登录状态...");
+            
+            var maxWaitTime = TimeSpan.FromMinutes(2);
+            var checkInterval = TimeSpan.FromSeconds(2);
+            var startTime = DateTime.Now;
+
+            while (DateTime.Now - startTime < maxWaitTime)
+            {
+                // 检查是否被请求取消
+                cancellationToken.ThrowIfCancellationRequested();
+
+                try
+                {
+                    // 复用检查登录状态的方法
+                    var loginStatus = await CheckLoginStatusAsync();
+                    
+                    if (loginStatus.IsLoggedIn)
+                    {
+                        _logger.LogInformation("检测到登录成功！用户: {Username}", loginStatus.Username);
+                        await SaveCookiesAsync();
+                        _logger.LogInformation("Cookie 已自动保存");
+                        
+                        // 请求取消任务
+                        _loginMonitorCts?.Cancel();
+                        _logger.LogInformation("监听任务已取消");
+                        return;
+                    }
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogDebug(ex, "检查登录状态出错");
+                }
+
+                // 每 2 秒检查一次
+                await Task.Delay(checkInterval, cancellationToken);
+            }
+
+            _logger.LogWarning("监听登录状态超时（2分钟内未检测到登录成功），任务终止");
+        }
+        catch (OperationCanceledException)
+        {
+            _logger.LogInformation("登录监听任务已被取消");
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "后台监听登录状态失败");
+        }
+        finally
+        {
+            // 清理资源
+            _loginMonitorCts?.Dispose();
+            _loginMonitorCts = null;
         }
     }
 }
