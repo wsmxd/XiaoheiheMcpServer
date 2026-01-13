@@ -45,7 +45,21 @@ builder.Services.AddMcpServer()
     .WithStdioServerTransport()
     .WithTools<XiaoheiheMcpTools>();
 
-await builder.Build().RunAsync();
+var host = builder.Build();
+
+// 监听应用停止事件，手动释放 XiaoheiheService 资源
+var lifetime = host.Services.GetRequiredService<IHostApplicationLifetime>();
+lifetime.ApplicationStopping.Register(async () =>
+{
+    Console.Error.WriteLine("正在关闭服务器，清理资源...");
+    var service = host.Services.GetService<XiaoheiheService>();
+    if (service != null)
+    {
+        await service.DisposeAsync();
+    }
+});
+
+await host.RunAsync();
 
 /// <summary>
 /// 小黑盒MCP工具集

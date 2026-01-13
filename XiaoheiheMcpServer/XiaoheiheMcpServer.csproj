@@ -7,7 +7,7 @@
     <Nullable>enable</Nullable>
     <!-- Playwright 不兼容 AOT，改用 Self-Contained 发布 -->
     <PublishAot>false</PublishAot>
-    <PublishSingleFile>false</PublishSingleFile>
+    <PublishSingleFile>true</PublishSingleFile>
     <SelfContained>false</SelfContained>
   </PropertyGroup>
 

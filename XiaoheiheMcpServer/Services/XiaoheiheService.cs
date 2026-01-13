@@ -127,6 +127,7 @@ public class XiaoheiheService : IAsyncDisposable
         await _loginService.DisposeAsync();
         await _publishService.DisposeAsync();
         await _interactionService.DisposeAsync();
+        await _articlePublishService.DisposeAsync();
     }
 }
 
