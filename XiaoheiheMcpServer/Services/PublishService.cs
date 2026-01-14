@@ -191,125 +191,7 @@ public class PublishService : BrowserBase
             }
 
             // 4. 选择社区 - 点击第一个添加按钮
-            if (args.Communities.Any())
-            {
-                _logger.LogInformation($"开始选择社区，共{args.Communities.Count}个...");
-                try
-                {
-                    foreach (var communityName in args.Communities)
-                    {
-                        var addButtons = await _page.QuerySelectorAllAsync(".editor__add-btn");
-                        if (addButtons.Count > 0)
-                        {
-                            // 每次都点击添加按钮（社区）
-                            await addButtons[0].ClickAsync();
-                            await Task.Delay(1000);
-                            _logger.LogInformation($"点击添加社区按钮，搜索: {communityName}");
-                            
-                            // 输入社区名称
-                            var searchInput = await _page.QuerySelectorAsync(".editor__search-input--input");
-                            if (searchInput != null)
-                            {
-                                await searchInput.ClickAsync();
-                                await Task.Delay(200);
-                                await searchInput.FillAsync(communityName);
-                                await Task.Delay(1000);
-                                
-                                // 点击editor-model__topic-list下的第一个社区项
-                                var communityItem = await _page.QuerySelectorAsync(".editor-model__topic-list .editor-model__topic-list-item");
-                                if (communityItem != null)
-                                {
-                                    await communityItem.ClickAsync();
-                                    await Task.Delay(500);
-                                    _logger.LogInformation($"已选择社区: {communityName}");
-                                }
-                                else
-                                {
-                                    _logger.LogWarning($"未找到社区: {communityName}");
-                                }
-                            }
-                        }
-                    }
-                }
-                catch (Exception ex)
-                {
-                    _logger.LogError(ex, "选择社区失败");
-                }
-            }
-
-            // 5. 添加话题 - 点击第二个添加按钮
-            if (args.Tags.Any())
-            {
-                _logger.LogInformation($"开始添加话题，共{args.Tags.Count}个...");
-                try
-                {
-                    foreach (var tag in args.Tags)
-                    {
-                        // 话题按钮位于 .editor__more-info.hashtags 容器内
-                        var hashtagAddBtn = await _page.QuerySelectorAsync(".editor__more-info.hashtags .editor__add-btn");
-                        if (hashtagAddBtn != null)
-                        {
-                            // 每次都点击话题按钮
-                            await hashtagAddBtn.ClickAsync();
-                            await Task.Delay(1000);
-                            _logger.LogInformation($"点击添加话题按钮，搜索: {tag}");
-                            
-                            // 输入话题名称
-                            var searchInput = await _page.QuerySelectorAsync(".editor__search-input--input");
-                            if (searchInput != null)
-                            {
-                                await searchInput.ClickAsync();
-                                await Task.Delay(200);
-                                await searchInput.FillAsync(tag);
-                                await Task.Delay(800);
-                                
-                                // 点击第一个话题
-                                var tagItem = await _page.QuerySelectorAsync(".editor-model__hashtag-list-item");
-                                if (tagItem != null)
-                                {
-                                    await tagItem.ClickAsync();
-                                    await Task.Delay(500);
-                                    _logger.LogInformation($"已添加话题: {tag}");
-                                }
-                                else
-                                {
-                                    _logger.LogWarning($"未找到话题: {tag}");
-                                }
-                            }
-                        }
-                    }
-                }
-                catch (Exception ex)
-                {
-                    _logger.LogError(ex, "添加话题失败");
-                }
-            }
-
-            // 6. 查找并点击发布按钮
-            var publishSelectors = new[]
-            {
-                ".editor-publish__btn.main-btn",
-                "button.editor-publish__btn",
-                "button:has-text('发布')",
-                "div[role='button']:has-text('发布')"
-            };
-
-            bool published = false;
-            foreach (var selector in publishSelectors)
-            {
-                try
-                {
-                    var publishBtn = await _page.QuerySelectorAsync(selector);
-                    if (publishBtn != null && await publishBtn.IsVisibleAsync())
-                    {
-                        _logger.LogInformation($"找到发布按钮: {selector}");
-                        await publishBtn.ClickAsync();
-                        published = true;
-                        break;
-                    }
-                }
-                catch { }
-            }
+            var published = await CommonService.SelectCommunityAndTag(new CommonArgs(args.Communities, args.Tags), _page, _logger);
 
             await Task.Delay(3000);
             await SaveCookiesAsync();
@@ -416,7 +298,7 @@ public class PublishService : BrowserBase
                         _logger.LogInformation("视频文件已选择，等待上传...");
                         
                         // 等待视频上传
-                        await Task.Delay(9000);
+                        await Task.Delay(7000);
                     }
                     else
                     {
@@ -471,18 +353,19 @@ public class PublishService : BrowserBase
                         {
                             await coverImageChooser.SetFilesAsync(args.CoverImagePath);
                             _logger.LogInformation("封面图片已选择，等待上传...");
-                            await Task.Delay(400);
-                            
-                            var confirmCoverBtn = await _page.QuerySelectorAsync(".editor-model__frame-bottom-btn.hb-color__btn--confirm");
+                            await Task.Delay(600);
+                            var confirmCoverBtn = await _page.QuerySelectorAsync(".editor-__model-frame-bottom-btn.hb-color__btn--confirm");
                             if (confirmCoverBtn != null)
                             {
                                 await confirmCoverBtn.ClickAsync();
-                                await Task.Delay(1000);
+                                await Task.Delay(2000);
                                 _logger.LogInformation("封面图片已上传");
                             }
                             else
                             {
                                 _logger.LogWarning("未找到封面图片确认按钮");
+                                // 创建一个日志文件
+                                File.AppendAllText("upload_cover_warning.log", $"未找到封面图片确认按钮, 时间{DateTime.Now}");
                             }
                         }
                         else
@@ -580,125 +463,7 @@ public class PublishService : BrowserBase
             }
 
             // 5. 选择社区 - 点击第一个添加按钮
-            if (args.Communities.Count != 0)
-            {
-                _logger.LogInformation($"开始选择社区，共{args.Communities.Count}个...");
-                try
-                {
-                    foreach (var communityName in args.Communities)
-                    {
-                        var addButtons = await _page.QuerySelectorAllAsync(".editor__add-btn");
-                        if (addButtons.Count > 0)
-                        {
-                            // 每次都点击添加按钮（社区）
-                            await addButtons[0].ClickAsync();
-                            await Task.Delay(1000);
-                            _logger.LogInformation($"点击添加社区按钮，搜索: {communityName}");
-                            
-                            // 输入社区名称
-                            var searchInput = await _page.QuerySelectorAsync(".editor__search-input--input");
-                            if (searchInput != null)
-                            {
-                                await searchInput.ClickAsync();
-                                await Task.Delay(200);
-                                await searchInput.FillAsync(communityName);
-                                await Task.Delay(1000);
-                                
-                                // 点击editor-model__topic-list下的第一个社区项
-                                var communityItem = await _page.QuerySelectorAsync(".editor-model__topic-list .editor-model__topic-list-item");
-                                if (communityItem != null)
-                                {
-                                    await communityItem.ClickAsync();
-                                    await Task.Delay(500);
-                                    _logger.LogInformation($"已选择社区: {communityName}");
-                                }
-                                else
-                                {
-                                    _logger.LogWarning($"未找到社区: {communityName}");
-                                }
-                            }
-                        }
-                    }
-                }
-                catch (Exception ex)
-                {
-                    _logger.LogError(ex, "选择社区失败");
-                }
-            }
-
-            // 6. 添加话题 - 点击第二个添加按钮
-            if (args.Tags.Count != 0)
-            {
-                _logger.LogInformation($"开始添加话题，共{args.Tags.Count}个...");
-                try
-                {
-                    foreach (var tag in args.Tags)
-                    {
-                        // 话题按钮位于 .editor__more-info.hashtags 容器内
-                        var hashtagAddBtn = await _page.QuerySelectorAsync(".editor__more-info.hashtags .editor__add-btn");
-                        if (hashtagAddBtn != null)
-                        {
-                            // 每次都点击话题按钮
-                            await hashtagAddBtn.ClickAsync();
-                            await Task.Delay(1000);
-                            _logger.LogInformation($"点击添加话题按钮，搜索: {tag}");
-                            
-                            // 输入话题名称
-                            var searchInput = await _page.QuerySelectorAsync(".editor__search-input--input");
-                            if (searchInput != null)
-                            {
-                                await searchInput.ClickAsync();
-                                await Task.Delay(200);
-                                await searchInput.FillAsync(tag);
-                                await Task.Delay(800);
-                                
-                                // 点击第一个话题
-                                var tagItem = await _page.QuerySelectorAsync(".editor-model__hashtag-list-item");
-                                if (tagItem != null)
-                                {
-                                    await tagItem.ClickAsync();
-                                    await Task.Delay(500);
-                                    _logger.LogInformation($"已添加话题: {tag}");
-                                }
-                                else
-                                {
-                                    _logger.LogWarning($"未找到话题: {tag}");
-                                }
-                            }
-                        }
-                    }
-                }
-                catch (Exception ex)
-                {
-                    _logger.LogError(ex, "添加话题失败");
-                }
-            }
-
-            // 7. 查找并点击发布按钮
-            var publishSelectors = new[]
-            {
-                ".editor-publish__btn.main-btn",
-                "button.editor-publish__btn",
-                "button:has-text('发布')",
-                "div[role='button']:has-text('发布')"
-            };
-
-            bool published = false;
-            foreach (var selector in publishSelectors)
-            {
-                try
-                {
-                    var publishBtn = await _page.QuerySelectorAsync(selector);
-                    if (publishBtn != null && await publishBtn.IsVisibleAsync())
-                    {
-                        _logger.LogInformation($"找到发布按钮: {selector}");
-                        await publishBtn.ClickAsync();
-                        published = true;
-                        break;
-                    }
-                }
-                catch { }
-            }
+            var published = await CommonService.SelectCommunityAndTag(new CommonArgs(args.Communities, args.Tags), _page, _logger);
 
             await Task.Delay(3000);
             await SaveCookiesAsync();

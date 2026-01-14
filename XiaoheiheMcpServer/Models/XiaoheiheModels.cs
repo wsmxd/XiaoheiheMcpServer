@@ -21,6 +21,14 @@ public class QrCodeInfo
 }
 
 /// <summary>
+/// 通用参数（社区和标签）
+/// </summary>
+public record CommonArgs(
+    List<string> Communities,
+    List<string> Tags
+);
+
+/// <summary>
 /// 发布内容参数
 /// </summary>
 public class PublishContentArgs

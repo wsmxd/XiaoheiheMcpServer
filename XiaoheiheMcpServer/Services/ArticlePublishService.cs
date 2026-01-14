@@ -282,28 +282,7 @@ public class ArticlePublishService : BrowserBase
             }
 
             // 4) 社区与话题与图文一致
-            await SelectCommunitiesAndTagsAsync(args);
-
-            // 5) 发布
-            var publishSelectors = new[]
-            {
-                ".editor-publish__btn.main-btn",
-                "button.editor-publish__btn",
-                "button:has-text('发布')",
-                "div[role='button']:has-text('发布')"
-            };
-
-            var published = false;
-            foreach (var selector in publishSelectors)
-            {
-                var publishBtn = await _page.QuerySelectorAsync(selector);
-                if (publishBtn != null && await publishBtn.IsVisibleAsync())
-                {
-                    await publishBtn.ClickAsync();
-                    published = true;
-                    break;
-                }
-            }
+            var published = await CommonService.SelectCommunityAndTag(new CommonArgs(args.Communities, args.Tags), _page, _logger);
 
             await Task.Delay(3000);
             await SaveCookiesAsync();
@@ -390,85 +369,5 @@ public class ArticlePublishService : BrowserBase
         }
 
         return (segments, allImages);
-    }
-
-    private async Task SelectCommunitiesAndTagsAsync(PublishArticleArgs args)
-    {
-        // 社区（第一个 .editor__add-btn）
-        if (args.Communities != null && args.Communities.Any())
-        {
-            try
-            {
-                foreach (var communityName in args.Communities)
-                {
-                    var addBtns = await _page.QuerySelectorAllAsync(".editor__add-btn");
-                    if (addBtns.Count > 0)
-                    {
-                        await addBtns[0].ClickAsync();
-                        await Task.Delay(700);
-                        
-                        var input = await _page.QuerySelectorAsync(".editor__search-input--input");
-                        if (input != null)
-                        {
-                            await input.ClickAsync();
-                            await Task.Delay(200);
-                            await input.FillAsync(communityName);
-                            await Task.Delay(1000);
-                            
-                            var item = await _page.QuerySelectorAsync(".editor-model__topic-list .editor-model__topic-list-item");
-                            if (item != null)
-                            {
-                                await item.ClickAsync();
-                                await Task.Delay(500);
-                                _logger.LogInformation($"[Article] 已选择社区: {communityName}");
-                            }
-                        }
-                    }
-                }
-            }
-            catch (Exception ex)
-            {
-                _logger.LogWarning(ex, "[Article] 选择社区失败");
-            }
-        }
-
-        // 话题（第二个 .editor__add-btn）
-        if (args.Tags.Any())
-        {
-            try
-            {
-                foreach (var tag in args.Tags)
-                {
-                    // 话题按钮位于 .editor__more-info.hashtags 容器内
-                    var hashtagAddBtn = await _page.QuerySelectorAsync(".editor__more-info.hashtags .editor__add-btn");
-                    if (hashtagAddBtn != null)
-                    {
-                        await hashtagAddBtn.ClickAsync();
-                        await Task.Delay(700);
-                        
-                        var input = await _page.QuerySelectorAsync(".editor__search-input--input");
-                        if (input != null)
-                        {
-                            await input.ClickAsync();
-                            await Task.Delay(200);
-                            await input.FillAsync(tag);
-                            await Task.Delay(600);
-                            
-                            var tagItem = await _page.QuerySelectorAsync(".editor-model__hashtag-list-item");
-                            if (tagItem != null)
-                            {
-                                await tagItem.ClickAsync();
-                                await Task.Delay(500);
-                                _logger.LogInformation($"[Article] 已添加话题: {tag}");
-                            }
-                        }
-                    }
-                }
-            }
-            catch (Exception ex)
-            {
-                _logger.LogWarning(ex, "[Article] 添加话题失败");
-            }
-        }
     }
 }
