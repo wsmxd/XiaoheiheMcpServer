@@ -57,56 +57,41 @@ public class PublishService : BrowserBase
             await Task.Delay(2000);
 
             // 1. 上传图片 - 点击 editor-image-wrapper__box upload 区域
-            if (args.Images.Any())
+            if (args.Images.Count != 0)
             {
                 _logger.LogInformation("上传封面图片...");
                 var validImages = args.Images.Where(File.Exists).ToArray();
-                if (validImages.Any())
+                if (validImages.Length != 0)
                 {
                     try
                     {
-                        // 先查找隐藏的文件输入框
-                        var fileInput = await _page.QuerySelectorAsync("input[type='file']");
+                        var uploadBox = await _page.QuerySelectorAsync(".editor-image-wrapper__box.upload");
                         
-                        if (fileInput != null)
+                        if (uploadBox != null)
                         {
-                            _logger.LogInformation("直接找到文件输入框，准备上传...");
-                            await fileInput.SetInputFilesAsync(validImages);
-                            await Task.Delay(2000 + (1000 * validImages.Length));
-                            _logger.LogInformation($"已上传 {validImages.Length} 张图片");
-                        }
-                        else
-                        {
-                            // 如果没找到，点击上传图片区域触发
-                            _logger.LogInformation("未找到文件输入框，尝试点击上传区域...");
-                            var uploadBox = await _page.QuerySelectorAsync(".editor-image-wrapper__box.upload");
+                            _logger.LogInformation("找到图片上传区域，点击触发文件选择器...");
                             
-                            if (uploadBox != null)
+                            // 使用 RunAndWaitForFileChooserAsync 来处理文件选择
+                            var fileChooser = await _page.RunAndWaitForFileChooserAsync(async () =>
                             {
-                                _logger.LogInformation("找到图片上传区域，点击触发文件选择器...");
-                                
-                                // 使用 RunAndWaitForFileChooserAsync 来处理文件选择
-                                var fileChooser = await _page.RunAndWaitForFileChooserAsync(async () =>
-                                {
-                                    await uploadBox.ClickAsync();
-                                });
-                                
-                                if (fileChooser != null)
-                                {
-                                    _logger.LogInformation($"文件选择器已打开，设置文件: {string.Join(", ", validImages)}");
-                                    await fileChooser.SetFilesAsync(validImages);
-                                    await Task.Delay(2000 + (1000 * validImages.Length));
-                                    _logger.LogInformation($"已上传 {validImages.Length} 张图片");
-                                }
-                                else
-                                {
-                                    _logger.LogWarning("点击后未能获取文件选择器");
-                                }
+                                await uploadBox.ClickAsync();
+                            });
+                            
+                            if (fileChooser != null)
+                            {
+                                _logger.LogInformation($"文件选择器已打开，设置文件: {string.Join(", ", validImages)}");
+                                await fileChooser.SetFilesAsync(validImages);
+                                await Task.Delay(2000 + (1000 * validImages.Length));
+                                _logger.LogInformation($"已上传 {validImages.Length} 张图片");
                             }
                             else
                             {
-                                _logger.LogWarning("未找到图片上传区域 .editor-image-wrapper__box.upload");
+                                _logger.LogWarning("点击后未能获取文件选择器");
                             }
+                        }
+                        else
+                        {
+                            _logger.LogWarning("未找到图片上传区域 .editor-image-wrapper__box.upload");
                         }
                     }
                     catch (Exception ex)
@@ -364,8 +349,6 @@ public class PublishService : BrowserBase
                             else
                             {
                                 _logger.LogWarning("未找到封面图片确认按钮");
-                                // 创建一个日志文件
-                                File.AppendAllText("upload_cover_warning.log", $"未找到封面图片确认按钮, 时间{DateTime.Now}");
                             }
                         }
                         else
