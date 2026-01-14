@@ -88,11 +88,11 @@ file class XiaoheiheMcpTools
     /// 交互式登录 - 打开浏览器让用户手动登录
     /// </summary>
     [McpServerTool(Name = "interactive_login")]
-    [Description("打开浏览器窗口，让用户手动登录小黑盒（推荐首次登录使用）")]
+    [Description("注意只能在第一次使用的时候调用，打开浏览器窗口，让用户手动登录小黑盒（推荐首次登录使用）后续如果Cookie过期请调用get_login_qrcode获取登录二维码重新登录")]
     public static async Task<string> InteractiveLogin(
         XiaoheiheService service,
         ILogger<XiaoheiheMcpTools> logger,
-        [Description("等待用户登录的超时时间（秒），默认300秒")] int waitTimeoutSeconds = 300)
+        [Description("等待用户登录的超时时间（秒），默认180秒")] int waitTimeoutSeconds = 180)
     {
         logger.LogInformation("执行工具: interactive_login");
         var status = await service.InteractiveLoginAsync(waitTimeoutSeconds);

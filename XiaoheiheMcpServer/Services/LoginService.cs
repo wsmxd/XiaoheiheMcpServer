@@ -26,38 +26,20 @@ public class LoginService : BrowserBase
             _logger.LogInformation("检查登录状态...");
             await InitializeBrowserAsync();
             
-            // 优化：检查当前页面 URL，避免不必要的导航
+            // 访问首页
             const string checkUrl = "https://www.xiaoheihe.cn/app/bbs/home";
-            var currentUrl = _page!.Url;
-            
-            // 只有当前页面不是小黑盒域名时才需要导航
-            if (string.IsNullOrEmpty(currentUrl) || !currentUrl.Contains("xiaoheihe.cn"))
-            {
-                _logger.LogInformation("当前页面不是小黑盒域名，导航至首页: {Url}", checkUrl);
-                await _page.GotoAsync(checkUrl);
-                await _page.WaitForLoadStateAsync(LoadState.NetworkIdle);
-                await Task.Delay(1000);
-            }
-            else
-            {
-                _logger.LogInformation("当前已在小黑盒页面 ({CurrentUrl})，跳过导航", currentUrl);
-                // 等待页面稳定
-                await Task.Delay(500);
-            }
+            _logger.LogInformation("访问首页: {Url}", checkUrl);
+            await _page!.GotoAsync(checkUrl);
+            await _page.WaitForLoadStateAsync(LoadState.NetworkIdle);
+            await Task.Delay(400);
 
-            // 使用 JavaScript 直接判断登录状态并获取用户名
-            var (isLoggedIn, username) = await _page.EvaluateAsync<(bool isLoggedIn, string username)>(@"
-                () => {
-                    const el = document.querySelector('p.user-box__username');
-                    if (el && el.textContent.trim()) {
-                        return { isLoggedIn: true, username: el.textContent.trim() };
-                    }
-                    return { isLoggedIn: false, username: '' };
-                }
-            ");
+            // 查找用户信息元素 p.user-box__username
+            var userElement = await _page.QuerySelectorAsync("p.user-box__username");
             
-            if (isLoggedIn)
+            if (userElement != null)
             {
+                var username = await userElement.TextContentAsync();
+                username = (username ?? "xiaoheihe-user").Trim();
                 _logger.LogInformation("已登录，用户: {Username}", username);
                 return new LoginStatus
                 {
@@ -88,13 +70,11 @@ public class LoginService : BrowserBase
     /// <summary>
     /// 交互式登录 - 打开有头浏览器让用户手动登录
     /// </summary>
-    /// <param name="waitTimeoutSeconds">等待用户登录的超时时间（秒），默认300秒（5分钟）</param>
-    public async Task<LoginStatus> InteractiveLoginAsync(int waitTimeoutSeconds = 300)
+    /// <param name="waitTimeoutSeconds">等待用户登录的超时时间（秒），默认180秒（3分钟）</param>
+    public async Task<LoginStatus> InteractiveLoginAsync(int waitTimeoutSeconds = 180)
     {
         try
         {
-            _logger.LogInformation("启动交互式登录，等待用户手动登录...");
-            
             // 注意：浏览器模式（headless/headed）在首次初始化时已确定
             // 这里直接初始化即可，模式由构造函数参数控制
             await InitializeBrowserAsync();
@@ -111,18 +91,9 @@ public class LoginService : BrowserBase
             // 等待登录成功（通过URL跳转或特定元素出现判断）
             try
             {
-                await _page.WaitForFunctionAsync(
-                    @"() => {
-                        // 检查是否跳转到首页
-                        if (window.location.href.includes('xiaoheihe.cn/home') || 
-                            window.location.href.includes('xiaoheihe.cn') && !window.location.href.includes('login')) {
-                            return true;
-                        }
-                        // 或者检查是否出现用户信息元素
-                        const userElement = document.querySelector('[class*=""user""], [class*=""avatar""]');
-                        return !!userElement;
-                    }",
-                    new PageWaitForFunctionOptions { Timeout = waitTimeoutSeconds * 1000 }
+                // 等待跳转完成，最长 3 分钟
+                await _page.WaitForURLAsync("**/xiaoheihe.cn/home", 
+                    new() { Timeout = waitTimeoutSeconds * 1000 }
                 );
 
                 _logger.LogInformation("检测到登录成功！");
@@ -131,18 +102,14 @@ public class LoginService : BrowserBase
                 await SaveCookiesAsync();
                 
                 // 获取用户信息
-                await Task.Delay(2000); // 等待页面稳定
-                var username = await _page.EvaluateAsync<string>(
-                    @"() => {
-                        const userElement = document.querySelector('[class*=""user""], [class*=""avatar""], [class*=""username""]');
-                        return userElement?.textContent?.trim() || 'xiaoheihe-user';
-                    }"
-                );
+                await Task.Delay(800); // 等待页面稳定
+                var userElement = await _page.QuerySelectorAsync("p.user-box__username");
+                var username = userElement is not null ? await userElement.TextContentAsync() : null;
 
                 return new LoginStatus
                 {
                     IsLoggedIn = true,
-                    Username = username,
+                    Username = username?.Trim() ?? "xiaoheihe-user",
                     Message = "登录成功！Cookie 已保存，后续操作将自动使用此登录状态"
                 };
             }
@@ -253,7 +220,7 @@ public class LoginService : BrowserBase
             _logger.LogInformation("后台监听登录状态...");
             
             var maxWaitTime = TimeSpan.FromMinutes(2);
-            var checkInterval = TimeSpan.FromSeconds(2);
+            var checkInterval = TimeSpan.FromSeconds(5);
             var startTime = DateTime.Now;
 
             while (DateTime.Now - startTime < maxWaitTime)
@@ -283,7 +250,7 @@ public class LoginService : BrowserBase
                     _logger.LogDebug(ex, "检查登录状态出错");
                 }
 
-                // 每 2 秒检查一次
+                // 每 5 秒检查一次
                 await Task.Delay(checkInterval, cancellationToken);
             }
 
