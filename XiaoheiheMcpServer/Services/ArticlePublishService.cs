@@ -132,9 +132,10 @@ public class ArticlePublishService : BrowserBase
 
                                 // 查找上传框：.hb-cpt__input-box 内的 input.hb-cpt__input-item
                                 var uploadInput = await _page.QuerySelectorAsync(".hb-cpt__input-box input.hb-cpt__input-item");
-                                
                                 // 同时查找本地上传按钮：.editor-image-wrapper__box.upload
                                 var uploadBtn = await _page.QuerySelectorAsync(".editor-image-wrapper__box.upload");
+                                // 确认按钮
+                                var confirmBtn = await _page.QuerySelectorAsync("button.editor-__model-frame-bottom-btn.hb-color__btn--confirm");
 
                                 if (uploadBtn != null && await uploadBtn.IsVisibleAsync())
                                 {
@@ -144,18 +145,13 @@ public class ArticlePublishService : BrowserBase
                                         await uploadBtn.ClickAsync();
                                     });
 
-                                    if (chooser != null)
+                                    if (chooser != null && confirmBtn != null)
                                     {
                                         await chooser.SetFilesAsync(imagePath);
                                         await Task.Delay(2000);
                                         
-                                        // 点击确定按钮确认上传
-                                        var confirmBtn = await _page.QuerySelectorAsync("button.editor-__model-frame-bottom-btn.hb-color__btn--confirm");
-                                        if (confirmBtn != null)
-                                        {
-                                            await confirmBtn.ClickAsync();
-                                            await Task.Delay(1000);
-                                        }
+                                        await confirmBtn.ClickAsync();
+                                        await Task.Delay(1000);
                                         
                                         _logger.LogInformation($"[Article] 已插入图片(本地): {imagePath}");
                                     }
@@ -163,24 +159,6 @@ public class ArticlePublishService : BrowserBase
                                     {
                                         _logger.LogWarning($"[Article] 未能打开文件选择器，图片: {imagePath}");
                                     }
-                                }
-                                else if (uploadInput != null && await uploadInput.IsVisibleAsync())
-                                {
-                                    // 网络URL：输入到链接框
-                                    await uploadInput.ClickAsync();
-                                    await Task.Delay(100);
-                                    await uploadInput.FillAsync(imagePath);
-                                    await Task.Delay(300);
-                                    
-                                    // 点击确定按钮提交
-                                    var confirmBtn = await _page.QuerySelectorAsync("button.editor-__model-frame-bottom-btn.hb-color__btn--confirm");
-                                    if (confirmBtn != null)
-                                    {
-                                        await confirmBtn.ClickAsync();
-                                    }
-                                    
-                                    await Task.Delay(2000);
-                                    _logger.LogInformation($"[Article] 已插入图片(网络): {imagePath}");
                                 }
                                 else
                                 {
@@ -241,23 +219,6 @@ public class ArticlePublishService : BrowserBase
                                         _logger.LogInformation($"[Article] 已插入额外图片(本地): {imgPath}");
                                     }
                                 }
-                                else if (uploadInput != null && await uploadInput.IsVisibleAsync())
-                                {
-                                    await uploadInput.ClickAsync();
-                                    await Task.Delay(100);
-                                    await uploadInput.FillAsync(imgPath);
-                                    await Task.Delay(300);
-                                    
-                                    // 点击确定按钮提交
-                                    var confirmBtn = await _page.QuerySelectorAsync("button.editor-__model-frame-bottom-btn.hb-color__btn--confirm");
-                                    if (confirmBtn != null)
-                                    {
-                                        await confirmBtn.ClickAsync();
-                                    }
-                                    
-                                    await Task.Delay(2000);
-                                    _logger.LogInformation($"[Article] 已插入额外图片(网络): {imgPath}");
-                                }
                             }
                         }
                     }
@@ -277,7 +238,7 @@ public class ArticlePublishService : BrowserBase
             // 4) 社区与话题与图文一致
             var published = await CommonService.SelectCommunityAndTag(new CommonArgs(args.Communities, args.Tags), _page, _logger);
 
-            await Task.Delay(3000);
+            await Task.Delay(1000);
             await SaveCookiesAsync();
 
             return new McpToolResult
