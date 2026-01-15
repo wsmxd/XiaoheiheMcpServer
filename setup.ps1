@@ -1,86 +1,143 @@
-#!/usr/bin/env pwsh
-# Xiaoheihei MCP Server 初始化脚本
-# 用途：检查和安装必要的依赖（.NET 运行时和 Playwright）
+param(
+    [string] $DotnetChannel = "LTS",
+    [string] $PlaywrightBrowsers = "chromium",
+    [string] $PlaywrightScriptPath = "",
+    [switch] $ForceDotnetInstall
+)
 
-$ErrorActionPreference = "Continue"
+$ErrorActionPreference = "Stop"
+Set-StrictMode -Version Latest
 
-Write-Host "========================================" -ForegroundColor Cyan
-Write-Host "小黑盒 MCP Server 初始化脚本" -ForegroundColor Cyan
-Write-Host "========================================" -ForegroundColor Cyan
-Write-Host ""
+function Write-Step([string] $Message) {
+    Write-Host ("[SETUP] " + $Message) -ForegroundColor Cyan
+}
 
-# 1. 检查 .NET 运行时
-Write-Host "检查 .NET 10.0 运行时..." -ForegroundColor Yellow
+function Write-Ok([string] $Message) {
+    Write-Host ("[ OK ] " + $Message) -ForegroundColor Green
+}
+
+function Write-Warn([string] $Message) {
+    Write-Warning ("[WARN] " + $Message)
+}
+
+function Ensure-Tls12 {
+    # Windows PowerShell 5.1 下默认可能不是 TLS 1.2，拉取 https 资源会失败
+    try {
+        if ($PSVersionTable.PSEdition -ne "Core") {
+            [Net.ServicePointManager]::SecurityProtocol = [Net.ServicePointManager]::SecurityProtocol -bor [Net.SecurityProtocolType]::Tls12
+        }
+    } catch {
+        Write-Warn "无法设置 TLS 1.2（可能不影响）。"
+    }
+}
+
+function Add-ToPathOnce([string] $Dir) {
+    if ([string]::IsNullOrWhiteSpace($Dir)) { return }
+    if (-not (Test-Path -LiteralPath $Dir)) { return }
+    $pathParts = $env:Path -split ';' | Where-Object { -not [string]::IsNullOrWhiteSpace($_) }
+    if ($pathParts -notcontains $Dir) {
+        $env:Path = "$Dir;" + $env:Path
+    }
+}
+
+function Test-DotnetAvailable {
+    return [bool](Get-Command dotnet -ErrorAction SilentlyContinue)
+}
 
 try {
-    $dotnetOutput = dotnet --version 2>$null
-    $dotnetVersion = $dotnetOutput.Split('.')[0]
-    
-    if ($dotnetVersion -ge 10) {
-        Write-Host "✅ 已安装 .NET $dotnetOutput" -ForegroundColor Green
+    Write-Step "开始环境配置（PowerShell $($PSVersionTable.PSVersion)，时间：$(Get-Date -Format 'yyyy-MM-dd HH:mm:ss')）"
+
+    if ($env:OS -ne 'Windows_NT') {
+        Write-Warn "当前不是 Windows 环境；脚本主要面向 Windows。"
     }
-    else {
-        Write-Host "⚠️  当前 .NET 版本为 $dotnetVersion，需要 .NET 10.0 或更高版本" -ForegroundColor Yellow
-        throw "需要升级 .NET"
+
+    Ensure-Tls12
+
+    # 1) 安装/确认 .NET SDK
+    $dotnetDir = Join-Path $env:LocalAppData "Microsoft\dotnet"
+    $dotnetToolsDir = Join-Path $env:UserProfile ".dotnet\tools"
+
+    Add-ToPathOnce $dotnetDir
+    Add-ToPathOnce $dotnetToolsDir
+
+    $dotnetExists = Test-DotnetAvailable
+    if ($dotnetExists -and -not $ForceDotnetInstall) {
+        Write-Ok ".NET 已检测到：$((dotnet --version) 2>$null)"
+    } else {
+        Write-Step "正在安装/更新 .NET SDK（Channel=$DotnetChannel，InstallDir=$dotnetDir）"
+        $dotnetInstallUrl = "https://dot.net/v1/dotnet-install.ps1"
+        $dotnetInstallScript = Join-Path $env:TEMP "dotnet-install.ps1"
+
+        Write-Step "下载 dotnet-install.ps1：$dotnetInstallUrl"
+        if ($PSVersionTable.PSEdition -ne "Core") {
+            Invoke-WebRequest -Uri $dotnetInstallUrl -OutFile $dotnetInstallScript -UseBasicParsing
+        } else {
+            Invoke-WebRequest -Uri $dotnetInstallUrl -OutFile $dotnetInstallScript
+        }
+
+        Write-Step "执行 dotnet-install.ps1（这一步可能需要几分钟）"
+        & $dotnetInstallScript -Channel $DotnetChannel -InstallDir $dotnetDir
+
+        Add-ToPathOnce $dotnetDir
+        Add-ToPathOnce $dotnetToolsDir
+
+        if (-not (Test-DotnetAvailable)) {
+            throw "dotnet 安装后仍不可用。请重开一个 PowerShell，再运行一次脚本，或检查执行策略/杀毒拦截。"
+        }
+
+        Write-Ok ".NET 安装完成：$((dotnet --version) 2>$null)"
     }
-}
-catch {
-    Write-Host "❌ 未检测到 .NET 运行时" -ForegroundColor Red
-    Write-Host ""
-    Write-Host "请访问以下链接下载 .NET 10.0:" -ForegroundColor Yellow
-    Write-Host "https://dotnet.microsoft.com/en-us/download/dotnet/10.0" -ForegroundColor Cyan
-    Write-Host ""
-    Write-Host "或者运行以下命令安装（需要管理员权限）:" -ForegroundColor Yellow
-    Write-Host "winget install Microsoft.DotNet.Runtime.10" -ForegroundColor Cyan
-    Write-Host ""
-    Exit 1
-}
 
-# 2. 检查和安装 Playwright
-Write-Host ""
-Write-Host "检查 Playwright 浏览器..." -ForegroundColor Yellow
+    Write-Step "dotnet --info（用于确认环境）"
+    dotnet --info | Out-Host
 
-$playwrightPath = "$env:APPDATA\ms-playwright"
-
-if (Test-Path $playwrightPath) {
-    Write-Host "✅ Playwright 已安装" -ForegroundColor Green
-}
-else {
-    Write-Host "🔄 首次运行需要安装 Playwright 浏览器..." -ForegroundColor Yellow
-    Write-Host "这可能需要几分钟时间，请耐心等待..." -ForegroundColor Yellow
-    Write-Host ""
-    
-    try {
-        # 使用 dotnet 工具安装 Playwright
-        $env:PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD = $null
-        dotnet tool install -g Microsoft.Playwright.CLI --version 1.57.0 2>$null
-        
-        if (($LASTEXITCODE -eq 0) -or ($(playwright --version 2>$null).Count -gt 0)) {
-            Write-Host "运行 Playwright 安装..." -ForegroundColor Yellow
-            playwright install chromium
-            
-            if ($LASTEXITCODE -eq 0) {
-                Write-Host "✅ Playwright 安装成功" -ForegroundColor Green
-            }
-            else {
-                Write-Host "⚠️  Playwright 安装可能存在问题，但服务器将在首次运行时尝试安装" -ForegroundColor Yellow
-            }
+    # 2) 安装浏览器（如已存在则跳过），使用本地 playwright.ps1 脚本
+    $msPwDir = Join-Path $env:LocalAppData 'ms-playwright'
+    $browserNames = $PlaywrightBrowsers -split '\s+' | Where-Object { $_ -and $_.Trim().Length -gt 0 }
+    $needInstall = $false
+    foreach ($b in $browserNames) {
+        $exists = $false
+        if (Test-Path -LiteralPath $msPwDir) {
+            $exists = @(Get-ChildItem -Path $msPwDir -Directory | Where-Object { $_.Name -like ("$b*") }).Count -gt 0
+        }
+        if ($exists) {
+            Write-Ok "检测到已安装浏览器：$b，跳过安装"
+        } else {
+            $needInstall = $true
         }
     }
-    catch {
-        Write-Host "⚠️  自动安装 Playwright 失败，服务器将在首次运行时尝试安装" -ForegroundColor Yellow
-        Write-Host "错误信息: $_" -ForegroundColor DarkYellow
-    }
-}
 
-Write-Host ""
-Write-Host "========================================" -ForegroundColor Green
-Write-Host "初始化完成！" -ForegroundColor Green
-Write-Host "========================================" -ForegroundColor Green
-Write-Host ""
-Write-Host "现在可以运行服务器了：" -ForegroundColor Cyan
-Write-Host "  ./XiaoheiheMcpServer.exe" -ForegroundColor Yellow
-Write-Host ""
-Write-Host "有头模式（推荐首次登录）：" -ForegroundColor Cyan
-Write-Host "  ./XiaoheiheMcpServer.exe --no-headless" -ForegroundColor Yellow
-Write-Host ""
+    if ($needInstall) {
+        # 解析 playwright.ps1 路径
+        $resolvedPlaywright = $PlaywrightScriptPath
+        if ([string]::IsNullOrWhiteSpace($resolvedPlaywright)) {
+            $candidates = @(
+                (Join-Path $PSScriptRoot 'playwright.ps1'),
+                (Join-Path $PSScriptRoot 'XiaoheiheMcpServer\bin\Debug\net10.0\playwright.ps1'),
+                (Join-Path $PSScriptRoot 'XiaoheiheMcpServer\bin\Release\net10.0\playwright.ps1'),
+                (Join-Path $PSScriptRoot 'XiaoheiheMcpServer\bin\Release\net10.0\publish\playwright.ps1')
+            )
+            foreach ($p in $candidates) {
+                if (Test-Path -LiteralPath $p) { $resolvedPlaywright = $p; break }
+            }
+        }
+
+        if (-not (Test-Path -LiteralPath $resolvedPlaywright)) {
+            throw "未找到 playwright.ps1 脚本。请确保它位于项目根或提供 -PlaywrightScriptPath。"
+        }
+
+        Write-Step "使用脚本安装 Playwright 浏览器：$PlaywrightBrowsers（脚本：$resolvedPlaywright）"
+        & $resolvedPlaywright install $PlaywrightBrowsers | Out-Host
+        if ($LASTEXITCODE -eq 0) {
+            Write-Ok "Playwright 浏览器安装完成"
+        } else {
+            Write-Warn "Playwright 浏览器安装脚本返回非零退出码，请检查日志或网络后重试。"
+        }
+    }
+
+    Write-Ok "环境配置完成。"
+} catch {
+    Write-Host "[FAIL] 环境配置失败：$($_.Exception.Message)" -ForegroundColor Red
+    Write-Host "[FAIL] 详情：$($_ | Out-String)" -ForegroundColor DarkRed
+    exit 1
+}

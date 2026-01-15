@@ -33,10 +33,7 @@
 2. 解压到任意目录，例如：`D:\Tools\XiaoheiheMcpServer\`
 3. 运行初始化脚本（会检查 .NET 运行时并安装 Playwright 浏览器）：
   - PowerShell: `./setup.ps1`
-  - CMD: `setup.bat`
-4. 运行服务器：`./XiaoheiheMcpServer.exe`（首次登录可加 `--no-headless`）
-
-> 说明：发布包内只包含单个 exe + 两个初始化脚本，依赖下载在首次安装时完成。
+  - CMD: `init.bat`
 
 ### 方式二：从源码构建
 
@@ -50,6 +47,7 @@
   ```bash
   dotnet build
   playwright install chromium
+  或者使用初始化init.bat脚本来安装
   ```
 3. 运行（开发模式）
   ```bash
