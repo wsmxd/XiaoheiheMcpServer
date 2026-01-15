@@ -78,10 +78,6 @@ public class ArticlePublishService : BrowserBase
                     var titleEl = prose[0];
                     await titleEl.ClickAsync();
                     await Task.Delay(300);
-                    await _page.Keyboard.PressAsync("Control+A");
-                    await Task.Delay(100);
-                    await _page.Keyboard.PressAsync("Delete");
-                    await Task.Delay(200);
                     await _page.Keyboard.TypeAsync(args.Title);
                     await Task.Delay(400);
                     _logger.LogInformation("[Article] 标题已填写");
@@ -102,10 +98,7 @@ public class ArticlePublishService : BrowserBase
             {
                 var prose = await _page.QuerySelectorAllAsync(".ProseMirror");
                 if (prose.Count > 1) contentEl = prose[1];
-                if (contentEl == null)
-                {
-                    contentEl = await _page.QuerySelectorAsync(".ProseMirror.hb-editor");
-                }
+                contentEl ??= await _page.QuerySelectorAsync(".ProseMirror.hb-editor");
 
                 if (contentEl != null)
                 {

@@ -9,6 +9,8 @@ namespace XiaoheiheMcpServer.Services;
 /// </summary>
 public class PublishService : BrowserBase
 {
+    private const int MaxCommunities = 2;
+    private const int MaxTags = 5;
     public PublishService(ILogger<PublishService> logger, bool headless = true)
         : base(logger, headless)
     {
@@ -21,9 +23,6 @@ public class PublishService : BrowserBase
     {
         try
         {
-            const int MaxCommunities = 2;
-            const int MaxTags = 5;
-
             if (args.Communities.Count > MaxCommunities)
             {
                 return new McpToolResult
@@ -100,82 +99,10 @@ public class PublishService : BrowserBase
                     }
                 }
             }
+            // 2. 填写标题和正文
+            await CommonService.TypedTitleAndContent(args.Title, args.Content, _page,  _logger);
 
-            // 2. 填写标题 - 找到标题输入框并点击输入
-            _logger.LogInformation("开始填写标题...");
-            try
-            {
-                // 找到所有 ProseMirror 编辑器
-                var proseMirrors = await _page.QuerySelectorAllAsync(".ProseMirror");
-                if (proseMirrors.Count > 0)
-                {
-                    // 第一个 ProseMirror 是标题
-                    var titleInput = proseMirrors[0];
-                    _logger.LogInformation("找到标题输入框，点击聚焦...");
-                    
-                    // 点击聚焦
-                    await titleInput.ClickAsync();
-                    await Task.Delay(300);
-                    
-                    // 全选并删除原有内容
-                    await _page.Keyboard.PressAsync("Control+A");
-                    await Task.Delay(100);
-                    await _page.Keyboard.PressAsync("Delete");
-                    await Task.Delay(300);
-                    
-                    // 输入标题
-                    await _page.Keyboard.TypeAsync(args.Title);
-                    await Task.Delay(500);
-                    _logger.LogInformation("标题已填写");
-                }
-                else
-                {
-                    _logger.LogWarning("未找到标题输入框 .ProseMirror");
-                }
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "填写标题失败");
-            }
-
-            // 3. 填写正文 - 找到正文输入框并点击输入
-            _logger.LogInformation("开始填写正文...");
-            try
-            {
-                // 找到所有 ProseMirror 编辑器，第二个是正文
-                var proseMirrors = await _page.QuerySelectorAllAsync(".ProseMirror");
-                if (proseMirrors.Count > 1)
-                {
-                    // 第二个 ProseMirror 是正文
-                    var contentInput = proseMirrors[1];
-                    _logger.LogInformation("找到正文输入框，点击聚焦...");
-                    
-                    // 点击聚焦
-                    await contentInput.ClickAsync();
-                    await Task.Delay(300);
-                    
-                    // 全选并删除原有内容
-                    await _page.Keyboard.PressAsync("Control+A");
-                    await Task.Delay(100);
-                    await _page.Keyboard.PressAsync("Delete");
-                    await Task.Delay(300);
-                    
-                    // 输入正文
-                    await _page.Keyboard.TypeAsync(args.Content);
-                    await Task.Delay(1000);
-                    _logger.LogInformation("正文已填写");
-                }
-                else
-                {
-                    _logger.LogWarning("未找到第二个正文输入框 .ProseMirror");
-                }
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "填写正文失败");
-            }
-
-            // 4. 选择社区 - 点击第一个添加按钮
+            // 3. 选择社区和话题并发布
             var published = await CommonService.SelectCommunityAndTag(new CommonArgs(args.Communities, args.Tags), _page, _logger);
 
             await Task.Delay(3000);
@@ -213,9 +140,6 @@ public class PublishService : BrowserBase
     {
         try
         {
-            const int MaxCommunities = 2;
-            const int MaxTags = 5;
-
             if (args.Communities.Count > MaxCommunities)
             {
                 return new McpToolResult
@@ -370,82 +294,10 @@ public class PublishService : BrowserBase
             {
                 _logger.LogError(ex, "上传封面图片失败");
             }
+            // 3. 填写标题和正文
+            await CommonService.TypedTitleAndContent(args.Title, args.Content, _page,  _logger);
 
-            // 3. 填写标题 - 找到标题输入框并点击输入
-            _logger.LogInformation("开始填写标题...");
-            try
-            {
-                // 找到所有 ProseMirror 编辑器
-                var proseMirrors = await _page.QuerySelectorAllAsync(".ProseMirror");
-                if (proseMirrors.Count > 0)
-                {
-                    // 第一个 ProseMirror 是标题
-                    var titleInput = proseMirrors[0];
-                    _logger.LogInformation("找到标题输入框，点击聚焦...");
-                    
-                    // 点击聚焦
-                    await titleInput.ClickAsync();
-                    await Task.Delay(300);
-                    
-                    // 全选并删除原有内容
-                    await _page.Keyboard.PressAsync("Control+A");
-                    await Task.Delay(100);
-                    await _page.Keyboard.PressAsync("Delete");
-                    await Task.Delay(300);
-                    
-                    // 输入标题
-                    await _page.Keyboard.TypeAsync(args.Title);
-                    await Task.Delay(500);
-                    _logger.LogInformation("标题已填写");
-                }
-                else
-                {
-                    _logger.LogWarning("未找到标题输入框 .ProseMirror");
-                }
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "填写标题失败");
-            }
-
-            // 4. 填写正文 - 找到正文输入框并点击输入
-            _logger.LogInformation("开始填写正文...");
-            try
-            {
-                // 找到所有 ProseMirror 编辑器，第二个是正文
-                var proseMirrors = await _page.QuerySelectorAllAsync(".ProseMirror");
-                if (proseMirrors.Count > 1)
-                {
-                    // 第二个 ProseMirror 是正文
-                    var contentInput = proseMirrors[1];
-                    _logger.LogInformation("找到正文输入框，点击聚焦...");
-                    
-                    // 点击聚焦
-                    await contentInput.ClickAsync();
-                    await Task.Delay(300);
-                    
-                    // 全选并删除原有内容
-                    await _page.Keyboard.PressAsync("Control+A");
-                    await Task.Delay(100);
-                    await _page.Keyboard.PressAsync("Delete");
-                    await Task.Delay(300);
-                    
-                    // 输入正文
-                    await _page.Keyboard.TypeAsync(args.Content);
-                    await Task.Delay(1000);
-                    _logger.LogInformation("正文已填写");
-                }
-                else
-                {
-                    _logger.LogWarning("未找到第二个正文输入框 .ProseMirror");
-                }
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "填写正文失败");
-            }
-
-            // 5. 选择社区 - 点击第一个添加按钮
+            // 4. 选择社区和话题并发布
             var published = await CommonService.SelectCommunityAndTag(new CommonArgs(args.Communities, args.Tags), _page, _logger);
 
             await Task.Delay(3000);
