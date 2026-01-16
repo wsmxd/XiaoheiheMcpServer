@@ -8,7 +8,6 @@
 
 **本项目目前处于开发中**，部分功能尚未完全验证：
 - ✅ 检查登录状态 - 已实现并测试
-- ✅ 二维码登录 - 已实现但未验证
 - ✅ 交互式登录 - 已实现
 - ✅ 发布图文内容 - 已实现（包括图片、社区、话题）
 - ✅ 发布文章 - 已实现
@@ -27,15 +26,22 @@
 
 ## 安装步骤
 
-### 方式一：使用发布的单文件 exe（推荐）
+### 方式一：使用发布的 HTTP 包（推荐）
 
-1. 从 Releases 下载最新的 `XiaoheiheMcpServer-win-x64.zip`
+1. 下载发布压缩包（内含 `XiaoheiheMcpServer.Http.exe` 与脚本）
+2. 解压到任意目录，例如：`D:\Tools\XiaoheiheMcpServer\`
+3. 安装浏览器依赖：`install-chromium.bat`（仅首次需要）
+4. 直接运行：`XiaoheiheMcpServer.Http.exe`（默认监听 HTTP 端口 5000）
+
+### 方式二：使用发布的单文件 exe（stdio）
+
+1. 从 Releases 下载 `XiaoheiheMcpServer-win-x64.zip`
 2. 解压到任意目录，例如：`D:\Tools\XiaoheiheMcpServer\`
 3. 运行初始化脚本（会检查 .NET 运行时并安装 Playwright 浏览器）：
   - PowerShell: `./setup.ps1`
   - CMD: `init.bat`
 
-### 方式二：从源码构建
+### 方式三：从源码构建
 
 1. 克隆仓库并还原依赖
   ```bash
@@ -46,7 +52,7 @@
 2. 构建并安装 Playwright 浏览器
   ```bash
   dotnet build
-  playwright install chromium
+  .\playwright.ps1 install
   或者使用初始化init.bat脚本来安装
   ```
 3. 运行（开发模式）
@@ -58,23 +64,34 @@
 
 ### VSCode 配置
 
-在任意目录下建立.vscode文件夹，创建mcp.json文件：
-
-**使用发布的 exe（推荐）**：
+**使用发布的 HTTP 包（推荐）**：
 ```json
 {
-	"servers": {
-		"xiaoheihe": {
-			"type": "stdio",
-			"command": "D:\\Tools\\XiaoheiheMcpServer\\XiaoheiheMcpServer.exe",
-			"args": []
-		}
-	},
-	"inputs": []
+  "servers": {
+    "xiaoheihe": {
+      "type": "http",
+      "url": "http://localhost:5000/mcp"
+    }
+  },
+  "inputs": []
 }
 ```
 
-**从源码运行（开发模式）**：
+**使用发布的 stdio exe**：
+```json
+{
+  "servers": {
+    "xiaoheihe": {
+      "type": "stdio",
+      "command": "D:\\Tools\\XiaoheiheMcpServer\\XiaoheiheMcpServer.exe",
+      "args": []
+    }
+  },
+  "inputs": []
+}
+```
+
+**从源码运行（开发模式，stdio）**：
 ```json
 {
   "servers": {
@@ -89,38 +106,6 @@
     }
   },
   "inputs": []
-}
-```
-
-### Cursor 配置
-
-编辑配置文件（`.cursor/mcp.json`）：
-
-**使用发布的 exe（推荐）**：
-```json
-{
-  "mcpServers": {
-    "xiaoheihe": {
-      "command": "D:\\Tools\\XiaoheiheMcpServer\\XiaoheiheMcpServer.exe",
-      "args": []
-    }
-  }
-}
-```
-
-**从源码运行（开发模式）**：
-```json
-{
-  "mcpServers": {
-    "xiaoheihe": {
-      "command": "dotnet",
-      "args": [
-        "run",
-        "--project",
-        "D:\\Projects\\XiaoheiheMcpServer\\XiaoheiheMcpServer\\XiaoheiheMcpServer.csproj"
-      ]
-    }
-  }
 }
 ```
 
@@ -178,13 +163,7 @@ dotnet run
 - 返回：登录结果
 - 状态：✅ 手动进行登录就行
 
-### 3. get_login_qrcode
-获取登录二维码
-- 参数：无
-- 返回：二维码图片（Base64）和过期时间
-- 状态：✅ 已验证
-
-### 4. publish_content
+### 3. publish_content
 发布图文内容到小黑盒
 - 参数：
   - `title`: 标题（必需）
@@ -194,7 +173,7 @@ dotnet run
   - `tags`: 话题标签列表（可选，**最多5个**）
 - 状态：✅ 已实现（图片、社区、话题功能已添加）
 
-### 5. publish_article
+### 4. publish_article
 发布文章到小黑盒（长文章形式）
 - 参数：
   - `title`: 标题（必需）
@@ -203,7 +182,7 @@ dotnet run
   - `tags`: 标签列表（可选，**最多5个**）
 - 状态：✅ 已验证
 
-### 6. publish_video
+### 5. publish_video
 发布视频到小黑盒
 - 参数：
   - `videoPath`: 视频文件路径（必需）
@@ -214,20 +193,16 @@ dotnet run
   - `tags`: 标签列表（可选，**最多5个**）
 - 状态：✅ 已验证
 
-### 7. search_content
+### 6. search_content
 搜索小黑盒内容
-社区：原神方舟
-话题：原神,游戏评测
-```
 
 ```
 搜索小黑盒上关于"原神"的内容
 ```
 
-```
 获取帖子 123456 的详细信息
 
-### 8. get_post_detail
+### 7. get_post_detail
 获取帖子/文章详情
 - 参数：
   - `postId`: 帖子/文章ID（必需）
@@ -235,33 +210,13 @@ dotnet run
 - 支持：图文帖子和长文章两种类型
 - 状态：✅ 已验证
 
-### 9. post_comment
+### 8. post_comment
 发表评论
 - 参数：
   - `postId`: 帖子ID（必需）
   - `content`: 评论内容（必需）
   - `images`: 评论图片路径列表（可选，本地绝对路径）
 - 状态：✅ 已验证
-
-## 使用示例
-
-在 MCP 客户端中：
-
-```
-帮我检查小黑盒登录状态
-```
-
-```
-帮我发布一篇关于游戏的帖子到小黑盒
-标题：《原神》新角色体验
-内容：今天体验了新角色，感觉非常不错...
-图片：C:\Users\用户\Pictures\game.jpg
-标签：原神,游戏评测
-```
-
-```
-搜索小黑盒上关于"原神"的内容
-```
 
 ## 数据存储
 
@@ -271,7 +226,7 @@ dotnet run
 
 ## 注意事项
 
-1. **浏览器安装**: 首次运行会下载 Chromium 浏览器（约 150MB）
+1. **浏览器安装**: 首次运行必须下载 Chromium 浏览器（约 150MB）
 2. **图片路径**: 图片路径需使用本地绝对路径
 3. **页面选择器**: 请根据小黑盒实际页面结构调整选择器（在 XiaoheiheService.cs 中）
 4. **运行模式**: 建议生产环境使用无头模式，调试时使用有界面模式
@@ -291,14 +246,6 @@ dotnet run
 - 小黑盒网站可能更新了页面结构
 - 需要更新 `XiaoheiheService.cs` 中的 CSS 选择器
 
-## 技术栈
-
-- .NET 10.0
-- ModelContextProtocol SDK (最新版)
-- Microsoft.Extensions.Hosting (依赖注入)
-- Playwright (浏览器自动化)
-- Newtonsoft.Json
-
 ## License
 
-MIT
+[MIT](LICENSE)
