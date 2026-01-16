@@ -88,7 +88,7 @@ file class XiaoheiheMcpTools
     /// 交互式登录 - 打开浏览器让用户手动登录
     /// </summary>
     [McpServerTool(Name = "interactive_login")]
-    [Description("注意只能在第一次使用的时候调用，打开浏览器窗口，让用户手动登录小黑盒（推荐首次登录使用）后续如果Cookie过期请调用get_login_qrcode获取登录二维码重新登录")]
+    [Description("打开浏览器窗口，让用户手动登录小黑盒（推荐首次登录使用）")]
     public static async Task<string> InteractiveLogin(
         XiaoheiheService service,
         ILogger<XiaoheiheMcpTools> logger,
@@ -100,27 +100,6 @@ file class XiaoheiheMcpTools
         return status.IsLoggedIn
             ? $"✅ {status.Message}\n用户名: {status.Username}\n\n现在可以使用其他功能了！"
             : $"❌ {status.Message}";
-    }
-
-    /// <summary>
-    /// 获取登录二维码（Base64格式）- 备用方案
-    /// </summary>
-    [McpServerTool(Name = "get_login_qrcode")]
-    [Description("获取登录二维码，扫码登录小黑盒（备用方案，推荐使用 interactive_login）")]
-    public static async Task<string> GetLoginQrCode(
-        XiaoheiheService service,
-        ILogger<XiaoheiheMcpTools> logger)
-    {
-        logger.LogInformation("执行工具: get_login_qrcode");
-        var qrInfo = await service.GetLoginQrCodeAsync();
-
-        if (string.IsNullOrEmpty(qrInfo.DataUrl))
-        {
-            return $"❌ {qrInfo.Message}";
-        }
-
-        // 返回包含Base64图片的markdown格式
-        return $"📱 {qrInfo.Message}\n过期时间: {qrInfo.ExpireTime:yyyy-MM-dd HH:mm:ss}\n\n![二维码]({qrInfo.DataUrl})";
     }
 
     /// <summary>

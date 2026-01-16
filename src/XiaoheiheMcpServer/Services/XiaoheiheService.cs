@@ -49,15 +49,6 @@ public class XiaoheiheService : IAsyncDisposable
         return _loginService.InteractiveLoginAsync(waitTimeoutSeconds);
     }
 
-    /// <summary>
-    /// 获取登录二维码（备用方案）
-    /// </summary>
-    public Task<QrCodeInfo> GetLoginQrCodeAsync()
-    {
-        _logger.LogInformation("调用登录二维码获取服务（备用方案）");
-        return _loginService.GetLoginQrCodeAsync();
-    }
-
     #endregion
 
     #region 内容发布相关
