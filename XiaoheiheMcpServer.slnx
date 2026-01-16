@@ -1,4 +1,5 @@
 <Solution>
   <Project Path="src/XiaoheiheMcpServer.Shared/XiaoheiheMcpServer.Shared.csproj" Id="70035cb0-3a34-4c44-98b4-486c9ebeea04" />
   <Project Path="src/XiaoheiheMcpServer/XiaoheiheMcpServer.csproj" />
+  <Project Path="src/XiaoheiheMcpServer.Http/XiaoheiheMcpServer.Http.csproj" />
 </Solution>

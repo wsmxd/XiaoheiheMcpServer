@@ -180,10 +180,6 @@ public class LoginService : BrowserBase
             {
                 throw new Exception("canvas.toDataURL() 返回的数据格式不正确");
             }
-            
-            // 提取 Base64 部分（去掉 "data:image/png;base64," 前缀）
-            var qrCanvasBase64 = dataUrl.Split(',')[1];
-            _logger.LogInformation("已成功从 canvas.toDataURL() 获取到 Base64 二维码（长度: {Length} 字符）", qrCanvasBase64.Length);
 
             _logger.LogInformation("二维码获取成功，返回给用户扫描");
 
@@ -195,7 +191,7 @@ public class LoginService : BrowserBase
 
             return new QrCodeInfo
             {
-                QrCodeBase64 = qrCanvasBase64,
+                DataUrl = dataUrl,
                 ExpireTime = DateTime.Now.AddMinutes(2),
                 Message = "请使用小黑盒APP扫描二维码登录"
             };

@@ -114,13 +114,13 @@ file class XiaoheiheMcpTools
         logger.LogInformation("执行工具: get_login_qrcode");
         var qrInfo = await service.GetLoginQrCodeAsync();
 
-        if (string.IsNullOrEmpty(qrInfo.QrCodeBase64))
+        if (string.IsNullOrEmpty(qrInfo.DataUrl))
         {
             return $"❌ {qrInfo.Message}";
         }
 
         // 返回包含Base64图片的markdown格式
-        return $"📱 {qrInfo.Message}\n过期时间: {qrInfo.ExpireTime:yyyy-MM-dd HH:mm:ss}\n\n![二维码](data:image/png;base64,{qrInfo.QrCodeBase64})";
+        return $"📱 {qrInfo.Message}\n过期时间: {qrInfo.ExpireTime:yyyy-MM-dd HH:mm:ss}\n\n![二维码]({qrInfo.DataUrl})";
     }
 
     /// <summary>
