@@ -1,5 +1,6 @@
-using XiaoheiheMcpServer.Models;
+using XiaoheiheMcpServer.Shared.Models;
 using Microsoft.Extensions.Logging;
+using XiaoheiheMcpServer.Shared.Services;
 
 namespace XiaoheiheMcpServer.Services;
 

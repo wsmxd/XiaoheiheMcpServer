@@ -1,4 +1,4 @@
-namespace XiaoheiheMcpServer.Models;
+namespace XiaoheiheMcpServer.Shared.Models;
 
 /// <summary>
 /// 登录状态

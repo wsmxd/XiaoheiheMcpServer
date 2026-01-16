@@ -1,6 +1,8 @@
 using Microsoft.Extensions.Logging;
 using Microsoft.Playwright;
-using XiaoheiheMcpServer.Models;
+using XiaoheiheMcpServer.Shared.Models;
+
+namespace XiaoheiheMcpServer.Shared.Services;
 
 public class CommonService
 {

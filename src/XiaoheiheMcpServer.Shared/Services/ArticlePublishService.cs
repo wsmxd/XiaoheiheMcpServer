@@ -1,9 +1,9 @@
 using System.Text.RegularExpressions;
 using Microsoft.Playwright;
-using XiaoheiheMcpServer.Models;
+using XiaoheiheMcpServer.Shared.Models;
 using Microsoft.Extensions.Logging;
 
-namespace XiaoheiheMcpServer.Services;
+namespace XiaoheiheMcpServer.Shared.Services;
 
 /// <summary>
 /// 专用于“文章(article)”类型发布的服务

@@ -4,7 +4,7 @@ using Microsoft.Extensions.Logging;
 using ModelContextProtocol.Server;
 using System.ComponentModel;
 using XiaoheiheMcpServer.Services;
-using XiaoheiheMcpServer.Models;
+using XiaoheiheMcpServer.Shared.Models;
 
 var builder = Host.CreateApplicationBuilder(args);
 

@@ -1,4 +1,4 @@
-namespace XiaoheiheMcpServer.Models;
+namespace XiaoheiheMcpServer.Shared.Models;
 
 /// <summary>
 /// MCP工具调用结果

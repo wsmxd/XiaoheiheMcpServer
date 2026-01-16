@@ -1,8 +1,8 @@
 using Microsoft.Playwright;
-using XiaoheiheMcpServer.Models;
+using XiaoheiheMcpServer.Shared.Models;
 using Microsoft.Extensions.Logging;
 
-namespace XiaoheiheMcpServer.Services;
+namespace XiaoheiheMcpServer.Shared.Services;
 
 /// <summary>
 /// 小黑盒内容发布服务 - 处理图文、文章、视频发布

@@ -2,7 +2,7 @@ using Microsoft.Playwright;
 using Microsoft.Extensions.Logging;
 using Newtonsoft.Json;
 
-namespace XiaoheiheMcpServer.Services;
+namespace XiaoheiheMcpServer.Shared.Services;
 
 /// <summary>
 /// 浏览器基础服务 - 处理Playwright生命周期和Cookies管理（支持浏览器实例复用）
