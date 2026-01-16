@@ -1,6 +1,7 @@
 using Microsoft.Playwright;
 using XiaoheiheMcpServer.Shared.Models;
 using Microsoft.Extensions.Logging;
+using System.Text.RegularExpressions;
 
 namespace XiaoheiheMcpServer.Shared.Services;
 
@@ -92,7 +93,7 @@ public class LoginService : BrowserBase
             try
             {
                 // 等待跳转完成，最长 3 分钟
-                await _page.WaitForURLAsync("**/xiaoheihe.cn/home", 
+                await _page.WaitForURLAsync(new Regex(@".*\.?xiaoheihe\.cn/home$"), 
                     new() { Timeout = waitTimeoutSeconds * 1000 }
                 );
 

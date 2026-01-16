@@ -388,7 +388,9 @@ async Task<object> HandleInteractiveLogin(XiaoheiheService service, JsonObject? 
     }
     
     var status = await service.InteractiveLoginAsync(waitTimeoutSeconds);
-    return status;
+    return status.IsLoggedIn
+            ? $"✅ {status.Message}\n用户名: {status.Username}\n\n现在可以使用其他功能了！"
+            : $"❌ {status.Message}";
 }
 
 async Task<object> HandlePublishContent(XiaoheiheService service, JsonObject? @params)

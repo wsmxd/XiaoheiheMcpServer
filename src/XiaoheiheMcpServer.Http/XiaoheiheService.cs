@@ -37,10 +37,10 @@ public class XiaoheiheService : IAsyncDisposable
     /// <summary>
     /// 用户自行进行登录
     /// </summary>
-    public Task<LoginStatus> InteractiveLoginAsync(int waitTimeoutSeconds = 300)
+    public async Task<LoginStatus> InteractiveLoginAsync(int waitTimeoutSeconds = 300)
     {
         _logger.LogInformation("调用交互式登录服务");
-        return _loginService.InteractiveLoginAsync(waitTimeoutSeconds);
+        return await _loginService.InteractiveLoginAsync(waitTimeoutSeconds);
     }
     #endregion
 
