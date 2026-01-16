@@ -1,5 +1,7 @@
 namespace XiaoheiheMcpServer.Shared.Models;
 
+using System.Text.Json.Serialization;
+
 /// <summary>
 /// 登录状态
 /// </summary>
@@ -33,10 +35,19 @@ public record CommonArgs(
 /// </summary>
 public class PublishContentArgs
 {
+    [JsonPropertyName("title")]
     public string Title { get; set; } = string.Empty;
+    
+    [JsonPropertyName("content")]
     public string Content { get; set; } = string.Empty;
+    
+    [JsonPropertyName("images")]
     public List<string> Images { get; set; } = [];
+    
+    [JsonPropertyName("communities")]
     public List<string> Communities { get; set; } = [];
+    
+    [JsonPropertyName("tags")]
     public List<string> Tags { get; set; } = [];
 }
 
@@ -45,10 +56,19 @@ public class PublishContentArgs
 /// </summary>
 public class PublishArticleArgs
 {
+    [JsonPropertyName("title")]
     public string Title { get; set; } = string.Empty;
+    
+    [JsonPropertyName("content")]
     public string Content { get; set; } = string.Empty;
+    
+    [JsonPropertyName("images")]
     public List<string> Images { get; set; } = [];
+    
+    [JsonPropertyName("communities")]
     public List<string> Communities { get; set; } = [];
+    
+    [JsonPropertyName("tags")]
     public List<string> Tags { get; set; } = [];
 }
 
@@ -57,11 +77,22 @@ public class PublishArticleArgs
 /// </summary>
 public class PublishVideoArgs
 {
+    [JsonPropertyName("title")]
     public string Title { get; set; } = string.Empty;
+    
+    [JsonPropertyName("content")]
     public string Content { get; set; } = string.Empty;
+    
+    [JsonPropertyName("videoPath")]
     public string VideoPath { get; set; } = string.Empty;
+    
+    [JsonPropertyName("coverImagePath")]
     public string CoverImagePath { get; set; } = string.Empty;
+    
+    [JsonPropertyName("communities")]
     public List<string> Communities { get; set; } = [];
+    
+    [JsonPropertyName("tags")]
     public List<string> Tags { get; set; } = [];
 }
 
@@ -70,8 +101,13 @@ public class PublishVideoArgs
 /// </summary>
 public class CommentArgs
 {
+    [JsonPropertyName("postId")]
     public string PostId { get; set; } = string.Empty;
+    
+    [JsonPropertyName("content")]
     public string Content { get; set; } = string.Empty;
+    
+    [JsonPropertyName("images")]
     public List<string> Images { get; set; } = [];
 }
 
@@ -80,10 +116,16 @@ public class CommentArgs
 /// </summary>
 public class SearchArgs
 {
+    [JsonPropertyName("keyword")]
     public string Keyword { get; set; } = string.Empty;
+    
+    [JsonPropertyName("page")]
     public int Page { get; set; } = 1;
+    
     private int _pageSize = 20;
+    
     /// <summary>每页大小，最多20条</summary>
+    [JsonPropertyName("pageSize")]
     public int PageSize
     {
         get => _pageSize;
@@ -96,6 +138,7 @@ public class SearchArgs
 /// </summary>
 public class PostDetailArgs
 {
+    [JsonPropertyName("postId")]
     public string PostId { get; set; } = string.Empty;
 }
 
@@ -111,7 +154,7 @@ public class PostDetail
     public string Title { get; set; } = string.Empty;
     
     /// <summary>封面图片URL列表</summary>
-    public List<string> CoverImages { get; set; } = new();
+    public List<string> CoverImages { get; set; } = [];
     
     /// <summary>正文内容（纯文本）</summary>
     public string Content { get; set; } = string.Empty;

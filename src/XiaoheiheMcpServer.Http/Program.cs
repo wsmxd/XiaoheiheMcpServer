@@ -374,6 +374,32 @@ object HandleLoggingSetLevel(JsonObject? @params)
 
 #endregion
 
+#region 参数提取辅助方法
+
+T? DeserializeParams<T>(JsonObject? @params, ILogger? logger = null) where T : class
+{
+    if (@params == null)
+        return null;
+
+    try
+    {
+        var options = new JsonSerializerOptions 
+        { 
+            PropertyNameCaseInsensitive = true,
+            WriteIndented = true
+        };
+        var result = JsonSerializer.Deserialize<T>(@params.ToJsonString(), options);
+        return result;
+    }
+    catch (Exception ex)
+    {
+        logger?.LogError(ex, "反序列化参数失败");
+        return null;
+    }
+}
+
+#endregion
+
 #region MCP 工具处理器
 
 Task<LoginStatus> HandleCheckLoginStatus(XiaoheiheService service) => service.CheckLoginStatusAsync();
@@ -395,95 +421,72 @@ async Task<object> HandleInteractiveLogin(XiaoheiheService service, JsonObject? 
 
 async Task<object> HandlePublishContent(XiaoheiheService service, JsonObject? @params)
 {
-    if (@params == null)
-        return new { error = new { code = -32602, message = "Invalid params" } };
+    var args = DeserializeParams<PublishContentArgs>(@params);
+    if (args == null || string.IsNullOrEmpty(args.Title) || string.IsNullOrEmpty(args.Content))
+        return new { error = new { code = -32602, message = "Missing or invalid required parameters: title, content" } };
 
-    var args = JsonSerializer.Deserialize<PublishContentArgs>(@params.ToJsonString());
-    if (args == null)
-        return new { error = new { code = -32602, message = "Invalid params format" } };
-
-    if (args.Communities is { Count: > 2 })
+    if (args.Communities?.Count > 2)
         return new { error = new { code = -32602, message = "communities 最多只能传 2 个" } };
-    if (args.Tags is { Count: > 5 })
+    if (args.Tags?.Count > 5)
         return new { error = new { code = -32602, message = "tags 最多只能传 5 个" } };
 
-    var result = await service.PublishContentAsync(args);
-    return result;
+    return await service.PublishContentAsync(args);
 }
 
 async Task<object> HandlePublishArticle(XiaoheiheService service, JsonObject? @params)
 {
-    if (@params == null)
-        return new { error = new { code = -32602, message = "Invalid params" } };
-
-    var args = JsonSerializer.Deserialize<PublishArticleArgs>(@params.ToJsonString());
-    if (args == null)
-        return new { error = new { code = -32602, message = "Invalid params format" } };
+    var args = DeserializeParams<PublishArticleArgs>(@params);
+    if (args == null || string.IsNullOrEmpty(args.Title) || string.IsNullOrEmpty(args.Content) || args.Communities?.Count == 0)
+        return new { error = new { code = -32602, message = "Missing or invalid required parameters: title, content, communities" } };
 
     if (args.Communities.Count > 2)
         return new { error = new { code = -32602, message = "communities 最多只能传 2 个" } };
-    if (args.Tags is { Count: > 5 })
+    if (args.Tags?.Count > 5)
         return new { error = new { code = -32602, message = "tags 最多只能传 5 个" } };
 
-    var result = await service.PublishArticleAsync(args);
-    return result;
+    return await service.PublishArticleAsync(args);
 }
 
 async Task<object> HandlePublishVideo(XiaoheiheService service, JsonObject? @params)
 {
-    if (@params == null)
-        return new { error = new { code = -32602, message = "Invalid params" } };
+    var args = DeserializeParams<PublishVideoArgs>(@params);
+    if (args == null || string.IsNullOrEmpty(args.Title) || string.IsNullOrEmpty(args.Content) || 
+        string.IsNullOrEmpty(args.VideoPath) || string.IsNullOrEmpty(args.CoverImagePath))
+        return new { error = new { code = -32602, message = "Missing or invalid required parameters: title, content, videoPath, coverImagePath" } };
 
-    var args = JsonSerializer.Deserialize<PublishVideoArgs>(@params.ToJsonString());
-    if (args == null)
-        return new { error = new { code = -32602, message = "Invalid params format" } };
-
-    if (args.Communities is { Count: > 2 })
+    if (args.Communities?.Count > 2)
         return new { error = new { code = -32602, message = "communities 最多只能传 2 个" } };
-    if (args.Tags is { Count: > 5 })
+    if (args.Tags?.Count > 5)
         return new { error = new { code = -32602, message = "tags 最多只能传 5 个" } };
 
-    var result = await service.PublishVideoAsync(args);
-    return result;
+    return await service.PublishVideoAsync(args);
 }
 
 async Task<object> HandleSearchContent(XiaoheiheService service, JsonObject? @params)
 {
-    if (@params == null)
-        return new { error = new { code = -32602, message = "Invalid params" } };
+    var args = DeserializeParams<SearchArgs>(@params);
+    if (args == null || string.IsNullOrEmpty(args.Keyword))
+        return new { error = new { code = -32602, message = "Missing or invalid required parameter: keyword" } };
 
-    var args = JsonSerializer.Deserialize<SearchArgs>(@params.ToJsonString());
-    if (args == null)
-        return new { error = new { code = -32602, message = "Invalid params format" } };
-
-    var result = await service.SearchContentAsync(args);
-    return result;
+    return await service.SearchContentAsync(args);
 }
 
 async Task<object> HandleGetPostDetail(XiaoheiheService service, JsonObject? @params)
 {
-    if (@params == null)
-        return new { error = new { code = -32602, message = "Invalid params" } };
+    var args = DeserializeParams<PostDetailArgs>(@params);
+    if (args == null || string.IsNullOrEmpty(args.PostId))
+        return new { error = new { code = -32602, message = "Missing or invalid required parameter: postId" } };
 
-    var args = JsonSerializer.Deserialize<PostDetailArgs>(@params.ToJsonString());
-    if (args == null)
-        return new { error = new { code = -32602, message = "Invalid params format" } };
-
-    var result = await service.GetPostContentAsync(args);
-    return result;
+    return await service.GetPostDetailAsync(args);
 }
 
 async Task<object> HandlePostComment(XiaoheiheService service, JsonObject? @params)
 {
-    if (@params == null)
-        return new { error = new { code = -32602, message = "Invalid params" } };
+    var args = DeserializeParams<CommentArgs>(@params);
+    if (args == null || string.IsNullOrEmpty(args.PostId) || string.IsNullOrEmpty(args.Content))
+        return new { error = new { code = -32602, message = "Missing or invalid required parameters: postId, content" } };
 
-    var args = JsonSerializer.Deserialize<CommentArgs>(@params.ToJsonString());
-    if (args == null)
-        return new { error = new { code = -32602, message = "Invalid params format" } };
-
-    var result = await service.PostCommentAsync(args);
-    return result;
+    return await service.PostCommentAsync(args);
 }
 
 #endregion
