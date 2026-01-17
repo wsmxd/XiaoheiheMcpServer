@@ -1,40 +1,60 @@
 # 项目结构文档
 
 ## 概述
-小黑盒 MCP 服务器项目已根据"单一职责原则"进行重构，将原来的单一大型服务文件拆分为多个专业化的服务类。
+小黑盒 MCP 服务器项目采用分层架构设计，将代码分为三个项目：
+- **XiaoheiheMcpServer.Shared**: 核心业务逻辑（服务和模型），被其他项目共享
+- **XiaoheiheMcpServer.Stdio**: Stdio 传输协议实现（MCP 标准方式）
+- **XiaoheiheMcpServer.Http**: HTTP 传输协议实现（可选替代方案）
 
-## 项目结构
+所有项目都遵循"单一职责原则"，将原来的大型服务文件拆分为多个专业化的服务类。
+
+## 项目关系图
 
 ```
-XiaoheiheMcpServer/
-├── Models/
-│   ├── McpToolResult.cs          # MCP 工具结果模型
-│   └── XiaoheiheModels.cs        # 业务模型（LoginStatus, PublishContentArgs 等）
-│
-├── Services/
-│   ├── BrowserBase.cs            # 浏览器基础类（处理Playwright生命周期、Cookies）
-│   ├── LoginService.cs           # 登录管理服务（二维码登录、状态检查）
-│   ├── PublishService.cs         # 内容发布服务（图文、文章、视频发布）
-│   ├── InteractionService.cs     # 互动服务（搜索、评论、获取详情）
-│   └── XiaoheiheService.cs       # Facade 协调者（协调各专业服务）
-│
-├── Program.cs                    # 应用入口和MCP工具定义
-└── XiaoheiheMcpServer.csproj    # 项目文件
+Clients (LLM Apps, etc.)
+    ↓
+├─→ XiaoheiheMcpServer.Stdio  ─┐  (Stdio transport)
+│   (Process-based)             │
+│                               ├→ XiaoheiheMcpServer.Shared (Core Services)
+└─→ XiaoheiheMcpServer.Http   ─┘  (HTTP transport)
+    (Server-based)
+```
 
-XiaoheiheMcpServer.Tests/
-├── Services/
-│   ├── BrowserBaseTests.cs       # BrowserBase 单元测试
-│   ├── LoginServiceTests.cs      # LoginService 单元测试
-│   ├── PublishServiceTests.cs    # PublishService 单元测试
-│   ├── InteractionServiceTests.cs # InteractionService 单元测试
-│   ├── XiaoheiheServiceTests.cs  # XiaoheiheService Facade 测试
-│   └── ServiceIntegrationTests.cs # 服务集成测试
-├── Models/
-│   └── ModelsTests.cs            # 模型测试
-└── XiaoheiheMcpServer.Tests.csproj
+```
+src/
+├── XiaoheiheMcpServer.Stdio/           # Stdio 传输协议实现（MCP Server 入口）
+│   ├── Services/
+│   │   └── XiaoheiheService.cs         # Facade 协调者（协调各专业服务）
+│   ├── Program.cs                      # 应用入口和MCP工具定义
+│   └── XiaoheiheMcpServer.Stdio.csproj # 项目文件
+│
+├── XiaoheiheMcpServer.Http/            # HTTP 传输协议实现（可选）
+│   ├── XiaoheiheService.cs             # HTTP 版本的 Facade
+│   ├── Program.cs                      # HTTP 服务器入口
+│   ├── Properties/
+│   │   └── launchSettings.json         # 启动配置
+│   ├── appsettings.json                # 应用配置
+│   ├── appsettings.Development.json    # 开发环境配置
+│   └── XiaoheiheMcpServer.Http.csproj  # 项目文件
+│
+└── XiaoheiheMcpServer.Shared/          # 共享库（服务和模型）
+    ├── Models/
+    │   ├── McpToolResult.cs            # MCP 工具结果模型
+    │   └── XiaoheiheModels.cs          # 业务模型（LoginStatus, PublishContentArgs 等）
+    │
+    └── Services/
+        ├── BrowserBase.cs              # 浏览器基础类（处理Playwright生命周期、Cookies）
+        ├── LoginService.cs             # 登录管理服务（二维码登录、状态检查）
+        ├── PublishService.cs           # 内容发布服务（图文、文章、视频发布）
+        ├── ArticlePublishService.cs    # 文章发布服务（长文章形式）
+        ├── InteractionService.cs       # 互动服务（搜索、评论、获取详情）
+        ├── CommonService.cs            # 通用服务方法
+        └── XiaoheiheMcpServer.Shared.csproj # 项目文件
 ```
 
 ## 服务架构
+
+所有服务都位于 `XiaoheiheMcpServer.Shared` 项目中，供 `Stdio` 和 `Http` 项目使用。
 
 ### 1. BrowserBase（浏览器基础类）
 **职责**: Playwright 生命周期管理、Cookies 持久化
@@ -149,12 +169,35 @@ Program.cs (MCP Server)
 XiaoheiheService (Facade)
     ├── LoginService (extends BrowserBase)
     ├── PublishService (extends BrowserBase)
+    ├── ArticlePublishService (extends BrowserBase)
     └── InteractionService (extends BrowserBase)
             ↓
         BrowserBase
             ↓
         Playwright
 ```
+
+## 项目说明
+
+### XiaoheiheMcpServer.Shared（共享库）
+**职责**: 包含所有核心业务逻辑和数据模型
+- **Models**: `McpToolResult`、业务模型（`LoginStatus`、`PublishContentArgs` 等）
+- **Services**: 所有服务类（`LoginService`、`PublishService`、`InteractionService` 等）
+- **特点**: 独立的业务库，不依赖 MCP 传输协议
+
+### XiaoheiheMcpServer.Stdio（Stdio 实现）
+**职责**: 通过 Stdio 传输协议提供 MCP 服务（推荐用于集成）
+- **传输方式**: 标准输入/输出（Process-based）
+- **适用场景**: LLM 应用集成、Claude 集成
+- **优点**: 进程隔离、标准协议、启动快速
+
+### XiaoheiheMcpServer.Http（HTTP 实现）
+**职责**: 通过 HTTP 协议提供 MCP 服务（可选）
+- **传输方式**: HTTP 长连接（Server-based）
+- **适用场景**: Web 应用、远程调用、测试工具
+- **优点**: 易于测试、跨机器通信、Web 兼容
+
+## 依赖关系图
 
 ## 设计模式
 
@@ -177,22 +220,6 @@ XiaoheiheService (Facade)
 ### 4. 依赖注入
 - 所有服务接受 `ILogger` 进行日志记录
 - 支持构造函数注入式的灵活配置
-
-## 测试结构
-
-### 单元测试
-```
-BrowserBaseTests        - 基础类功能测试
-LoginServiceTests       - 登录服务测试
-PublishServiceTests     - 发布服务测试
-InteractionServiceTests - 互动服务测试
-XiaoheiheServiceTests   - Facade 测试
-```
-
-### 集成测试
-```
-ServiceIntegrationTests - 多服务协同工作测试
-```
 
 ## 迁移指南（如果需要更新代码）
 
@@ -244,32 +271,57 @@ await service.PublishContentAsync(args);
 
 ## 快速开始
 
-### 编译项目（无头模式）
+### 编译整个解决方案
 ```bash
-cd XiaoheiheMcpServer
 dotnet build
 ```
 
-### 运行服务器（有界面模式）
+### 运行 Stdio 版本（推荐）
 ```bash
+cd src/XiaoheiheMcpServer.Stdio
 dotnet run -- --no-headless
 ```
 
-### 运行测试
+### 运行 HTTP 版本（可选）
 ```bash
-dotnet test
+cd src/XiaoheiheMcpServer.Http
+dotnet run -- --no-headless
+```
+
+
+### 发布单文件可执行程序
+```bash
+# 发布 Stdio 版本
+cd src/XiaoheiheMcpServer.Stdio
+dotnet publish -c Release -o ./publish
+
+# 发布 HTTP 版本
+cd src/XiaoheiheMcpServer.Http
+dotnet publish -c Release -o ./publish
 ```
 
 ### 集成到你的 MCP 应用
 ```csharp
-var service = new XiaoheiheService(logger, headless: true);
+// Stdio 方式
+using var process = new System.Diagnostics.Process
+{
+    StartInfo = new System.Diagnostics.ProcessStartInfo
+    {
+        FileName = "XiaoheiheMcpServer.Stdio.exe",
+        UseShellExecute = false,
+        RedirectStandardInput = true,
+        RedirectStandardOutput = true,
+        RedirectStandardError = true,
+        CreateNoWindow = true
+    }
+};
+process.Start();
 
-// 所有原来的 API 都可用
-await service.CheckLoginStatusAsync();
-await service.PublishContentAsync(args);
-// ... 其他操作
+// 或 HTTP 方式
+var client = new HttpClient();
+var response = await client.GetAsync("http://localhost:5000/mcp");
 ```
 
 ---
-**最后更新**: 2026年1月11日  
-**版本**: 2.0（架构重构版）
+**最后更新**: 2026年1月17日  
+**版本**: 0.4

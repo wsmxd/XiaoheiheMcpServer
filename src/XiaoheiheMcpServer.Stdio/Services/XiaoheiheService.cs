@@ -2,7 +2,7 @@ using XiaoheiheMcpServer.Shared.Models;
 using Microsoft.Extensions.Logging;
 using XiaoheiheMcpServer.Shared.Services;
 
-namespace XiaoheiheMcpServer.Services;
+namespace XiaoheiheMcpServer.Stdio.Services;
 
 /// <summary>
 /// 小黑盒服务Facade - 协调各个专业服务

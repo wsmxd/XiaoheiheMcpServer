@@ -12,7 +12,7 @@ MCP Inspector 是官方的测试工具，提供可视化界面。
 
 2. 启动 Inspector:
 ```bash
-npx @modelcontextprotocol/inspector dotnet run --project XiaoheiheMcpServer/XiaoheiheMcpServer.csproj
+npx @modelcontextprotocol/inspector dotnet run --project XiaoheiheMcpServer/src/XiaoheiheMcpServer.Stdio.csproj
 ```
 
 3. 在浏览器中打开显示的 URL (通常是 http://localhost:5173)
@@ -38,7 +38,7 @@ npx @modelcontextprotocol/inspector dotnet run --project XiaoheiheMcpServer/Xiao
       "args": [
         "run",
         "--project",
-        "D:/vs/.NETWithAI/XiaoheiheMcpServer/XiaoheiheMcpServer/XiaoheiheMcpServer.csproj"
+        "D:/vs/.NETWithAI/XiaoheiheMcpServer/XiaoheiheMcpServer/src/XiaoheiheMcpServer.Stdio.csproj"
       ]
     }
   }
@@ -49,25 +49,18 @@ npx @modelcontextprotocol/inspector dotnet run --project XiaoheiheMcpServer/Xiao
 
 4. 在对话中测试：
    - "帮我检查小黑盒登录状态"
-   - "获取小黑盒登录二维码"
    - 等等
 
-### 方法 3: 使用命令行测试（调试用）
-
-运行简单的启动测试：
-```bash
-.\test-server-simple.ps1
-```
 
 这将以有界面模式启动服务器，你可以看到浏览器窗口和详细日志。
 
-### 方法 4: 手动 stdin/stdout 测试
+### 方法 3: 手动 stdin/stdout 测试
 
 对于高级用户，可以手动发送 JSON-RPC 消息：
 
 1. 启动服务器:
 ```bash
-cd XiaoheiheMcpServer
+cd XiaoheiheMcpServer.Stdio
 dotnet run
 ```
 
@@ -85,14 +78,16 @@ dotnet run
 
 ## 预期的工具列表
 
-服务器应该提供以下 6 个工具：
+服务器应该提供以下 8 个工具：
 
 1. `check_login_status` - 检查登录状态
-2. `get_login_qrcode` - 获取登录二维码
+2. `interactive_login` - 用户自行登录
 3. `publish_content` - 发布图文内容
 4. `search_content` - 搜索内容
 5. `get_post_detail` - 获取帖子详情
 6. `post_comment` - 发表评论
+7. `publish_article` - 发布文章内容
+8. `publish_video` - 发布视频内容
 
 ## 故障排查
 
@@ -110,12 +105,3 @@ pwsh bin/Debug/net10.0/playwright.ps1 install chromium
 - 检查防火墙设置
 - 确认项目路径正确
 - 查看服务器日志（stderr）
-
-## 单元测试
-
-运行自动化单元测试：
-```bash
-dotnet test
-```
-
-这将运行 14 个单元测试（6 个服务测试 + 8 个模型测试），不需要真实的浏览器环境。
