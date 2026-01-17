@@ -37,9 +37,7 @@
 
 1. 从 Releases 下载 `XiaoheiheMcpServer-win-x64.zip`
 2. 解压到任意目录，例如：`D:\Tools\XiaoheiheMcpServer\`
-3. 运行初始化脚本（会检查 .NET 运行时并安装 Playwright 浏览器）：
-  - PowerShell: `./setup.ps1`
-  - CMD: `init.bat`
+
 
 ### 方式三：从源码构建
 
@@ -53,11 +51,11 @@
   ```bash
   dotnet build
   .\playwright.ps1 install
-  或者使用初始化init.bat脚本来安装
+  或者使用初始化install-chromium.bat脚本来安装
   ```
 3. 运行（开发模式）
   ```bash
-  dotnet run --project XiaoheiheMcpServer/XiaoheiheMcpServer.csproj
+  dotnet run --project XiaoheiheMcpServer/XiaoheiheMcpServer.Stdio.csproj
   ```
 
 ## MCP 客户端配置
@@ -83,7 +81,7 @@
   "servers": {
     "xiaoheihe": {
       "type": "stdio",
-      "command": "D:\\Tools\\XiaoheiheMcpServer\\XiaoheiheMcpServer.exe",
+      "command": "D:\\Tools\\XiaoheiheMcpServer\\XiaoheiheMcpServer.Stdio.exe",
       "args": []
     }
   },
@@ -101,7 +99,7 @@
       "args": [
         "run",
         "--project",
-        "D:\\Projects\\XiaoheiheMcpServer\\XiaoheiheMcpServer\\XiaoheiheMcpServer.csproj"
+        "D:\\Projects\\XiaoheiheMcpServer\\XiaoheiheMcpServer\\XiaoheiheMcpServer.Stdio.csproj"
       ]
     }
   },
@@ -117,9 +115,8 @@
 ## 首次使用
 
 1. **先跑一次初始化脚本**（发布包内已附带）
-  - PowerShell: `./setup.ps1`
-  - CMD: `setup.bat`
-  - 作用：检测/提示安装 .NET 运行时，安装 Playwright 浏览器
+  - CMD: `install-chromium.bat`
+  - 作用：安装 Playwright 浏览器
 
 2. **自动模式切换**：
   - 首次运行会自动使用**有头模式**（显示浏览器窗口）
@@ -128,28 +125,11 @@
 
 3. **推荐登录方式**：
   - 使用 `interactive_login` 工具（在浏览器中手动登录）
-  - 支持手机验证码、密码、扫码等多种方式
 
 4. **测试连接**：
    ```
    请帮我检查小黑盒登录状态
    ```
-
-## 命令行使用（可选）
-
-如果需要单独测试，可以直接运行（首次请先执行 `setup.ps1` 或 `setup.bat` 安装依赖）：
-
-**发布版**：
-```powershell
-cd D:\Tools\XiaoheiheMcpServer
-.\XiaoheiheMcpServer.exe
-```
-
-**开发版**：
-```bash
-cd XiaoheiheMcpServer
-dotnet run
-```
 
 ### 1. check_login_status
 检查小黑盒登录状态
@@ -235,8 +215,7 @@ dotnet run
 ## 故障排查
 
 ### 问题：服务器无法启动
-- 检查 .NET 10.0 运行时是否已安装（缺失可通过 `setup.ps1`/`setup.bat` 提示的链接安装）
-- 重新运行 `setup.ps1` 或执行 `playwright install chromium` 安装浏览器
+- 检查是否未安装playwright浏览器，重新运行 `install-chromium.bat` 或执行 `playwright install chromium` 安装浏览器
 
 ### 问题：登录失败或 Cookie 过期
 - 删除 `data/cookies.json` 文件
