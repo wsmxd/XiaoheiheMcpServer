@@ -2,24 +2,22 @@
 
 使用 .NET 实现的小黑盒社交网站 MCP (Model Context Protocol) 服务器，类似于 xiaohongshu-mcp 项目。
 
-**基于最新的 MCP C# SDK (ModelContextProtocol)** - 使用依赖注入和特性（Attribute）方式注册工具。
+## 项目功能
 
-## ⚠️ 开发状态
-
-**本项目目前处于开发中**，部分功能尚未完全验证：
-- ✅ 检查登录状态 - 已实现并测试
-- ✅ 交互式登录 - 已实现
-- ✅ 发布图文内容 - 已实现（包括图片、社区、话题）
-- ✅ 发布文章 - 已实现
-- ✅ 发布视频 - 已实现并测试
-- ✅ 发布评论 - 已验证
-- ✅ 搜索内容 - 已实现并测试
-- ✅ 获取帖子详情 - 已实现并测试
+**项目功能**：
+- ✅ 检查登录状态
+- ✅ 交互式登录
+- ✅ 发布图文内容
+- ✅ 发布文章
+- ✅ 发布视频
+- ✅ 发布评论
+- ✅ 搜索内容
+- ✅ 获取帖子详情
 
 ## 技术栈
 
 - .NET 10.0
-- ModelContextProtocol SDK (最新版)
+- ModelContextProtocol SDK
 - Microsoft.Extensions.Hosting (依赖注入)
 - Playwright (浏览器自动化)
 - Newtonsoft.Json
@@ -55,7 +53,7 @@
   ```
 3. 运行（开发模式）
   ```bash
-  dotnet run --project XiaoheiheMcpServer/XiaoheiheMcpServer.Stdio.csproj
+  dotnet run --project src/XiaoheiheMcpServer.Stdio/XiaoheiheMcpServer.Stdio.csproj
   ```
 
 ## MCP 客户端配置
@@ -83,24 +81,6 @@
       "type": "stdio",
       "command": "D:\\Tools\\XiaoheiheMcpServer\\XiaoheiheMcpServer.Stdio.exe",
       "args": []
-    }
-  },
-  "inputs": []
-}
-```
-
-**从源码运行（开发模式，stdio）**：
-```json
-{
-  "servers": {
-    "xiaoheihe": {
-      "type": "stdio",
-      "command": "dotnet",
-      "args": [
-        "run",
-        "--project",
-        "D:\\Projects\\XiaoheiheMcpServer\\XiaoheiheMcpServer\\XiaoheiheMcpServer.Stdio.csproj"
-      ]
     }
   },
   "inputs": []

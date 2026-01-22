@@ -12,7 +12,7 @@ MCP Inspector 是官方的测试工具，提供可视化界面。
 
 2. 启动 Inspector:
 ```bash
-npx @modelcontextprotocol/inspector dotnet run --project XiaoheiheMcpServer/src/XiaoheiheMcpServer.Stdio.csproj
+npx @modelcontextprotocol/inspector dotnet run --project XiaoheiheMcpServer/src/XiaoheiheMcpServer.Stdio/XiaoheiheMcpServer.Stdio.csproj
 ```
 
 3. 在浏览器中打开显示的 URL (通常是 http://localhost:5173)
@@ -38,7 +38,7 @@ npx @modelcontextprotocol/inspector dotnet run --project XiaoheiheMcpServer/src/
       "args": [
         "run",
         "--project",
-        "D:/vs/.NETWithAI/XiaoheiheMcpServer/XiaoheiheMcpServer/src/XiaoheiheMcpServer.Stdio.csproj"
+        "D:/XiaoheiheMcpServer/src/XiaoheiheMcpServer.Stdio/XiaoheiheMcpServer.Stdio.csproj"
       ]
     }
   }

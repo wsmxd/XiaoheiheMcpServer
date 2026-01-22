@@ -439,7 +439,7 @@ async Task<object> HandlePublishArticle(XiaoheiheService service, JsonObject? @p
     if (args == null || string.IsNullOrEmpty(args.Title) || string.IsNullOrEmpty(args.Content) || args.Communities?.Count == 0)
         return new { error = new { code = -32602, message = "Missing or invalid required parameters: title, content, communities" } };
 
-    if (args.Communities.Count > 2)
+    if (args.Communities?.Count > 2)
         return new { error = new { code = -32602, message = "communities 最多只能传 2 个" } };
     if (args.Tags?.Count > 5)
         return new { error = new { code = -32602, message = "tags 最多只能传 5 个" } };
