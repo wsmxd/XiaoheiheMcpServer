@@ -17,7 +17,7 @@ public class LoginStatus
 /// </summary>
 public class QrCodeInfo
 {
-    public string DataUrl { get; set; } = string.Empty;
+    public string QrDataPath { get; set; } = string.Empty;
     public DateTime ExpireTime { get; set; }
     public string Message { get; set; } = string.Empty;
 }

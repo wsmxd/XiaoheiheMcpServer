@@ -136,13 +136,12 @@ public class LoginService : BrowserBase
     }
 
     /// <summary>
-    /// 获取登录二维码（备用方案）
+    /// 获取登录二维码
     /// </summary>
     public async Task<QrCodeInfo> GetLoginQrCodeAsync()
     {
         try
         {
-            _logger.LogInformation("获取登录二维码（备用方案，推荐使用 interactive_login）...");
             await InitializeBrowserAsync();
 
             // 直接访问登录页面
@@ -174,27 +173,32 @@ public class LoginService : BrowserBase
             
             _logger.LogInformation("已找到二维码 canvas 元素，准备获取二维码数据");
             
-            // 直接调用 toDataURL() 获取二维码 Base64 数据（与浏览器控制台测试一致）
-            var dataUrl = await canvas.EvaluateAsync<string>("c => c.toDataURL()");
-            
-            if (string.IsNullOrWhiteSpace(dataUrl) || !dataUrl.StartsWith("data:image", StringComparison.OrdinalIgnoreCase))
+            var qrdata = await canvas.ScreenshotAsync(new()
             {
-                throw new Exception("canvas.toDataURL() 返回的数据格式不正确");
-            }
+                Type = ScreenshotType.Png,
+                OmitBackground = true
+            });
+            await File.WriteAllBytesAsync("qrcode.png", qrdata);
+            var qrPath = Path.GetFullPath("qrcode.png");
 
             _logger.LogInformation("二维码获取成功，返回给用户扫描");
 
             // 创建用于管理监听任务的 CancellationTokenSource
-            _loginMonitorCts = new CancellationTokenSource();
+            //_loginMonitorCts = new CancellationTokenSource();
             
             // 启动后台任务监听登录状态，登录成功后自动保存 Cookie 并取消任务
-            _ = Task.Run(async () => await MonitorAndSaveLoginAsync(_loginMonitorCts.Token));
+            //_ = Task.Run(async () => await MonitorAndSaveLoginAsync(_loginMonitorCts.Token));
+            System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(qrPath) { UseShellExecute = true });
+            await _page.WaitForURLAsync(new Regex(@".*\.?xiaoheihe\.cn/home$"), 
+                    new() { Timeout = 120 * 1000 }
+                );
+
+            _logger.LogInformation("检测到登录成功！");
+            await SaveCookiesAsync();
 
             return new QrCodeInfo
             {
-                DataUrl = dataUrl,
-                ExpireTime = DateTime.Now.AddMinutes(2),
-                Message = "请使用小黑盒APP扫描二维码登录"
+                Message = "登录成功！Cookie 已保存，后续操作将自动使用此登录状态"
             };
         }
         catch (Exception ex)
@@ -202,7 +206,7 @@ public class LoginService : BrowserBase
             _logger.LogError(ex, "获取登录二维码失败");
             return new QrCodeInfo
             {
-                Message = $"获取登录二维码失败: {ex.Message}\n建议使用 interactive_login 工具进行首次登录"
+                Message = $"获取登录二维码失败: {ex.Message}\n"
             };
         }
     }

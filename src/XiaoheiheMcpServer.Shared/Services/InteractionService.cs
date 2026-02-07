@@ -243,7 +243,7 @@ public partial class InteractionService : BrowserBase
     /// <summary>
     /// 从URL中提取帖子ID
     /// </summary>
-    private static string ExtractPostId(string url)
+    internal static string ExtractPostId(string url)
     {
         // 格式: /app/bbs/link/{postId}?...
         var match = MyRegex().Match(url);
@@ -411,7 +411,7 @@ public partial class InteractionService : BrowserBase
     }
 
     [System.Text.RegularExpressions.GeneratedRegex(@"/app/bbs/link/(\d+)")]
-    private static partial System.Text.RegularExpressions.Regex MyRegex();
+    internal static partial System.Text.RegularExpressions.Regex MyRegex();
     [System.Text.RegularExpressions.GeneratedRegex(@"background-image:\s*url\(['""]*(.+?)['""]*\)")]
-    private static partial System.Text.RegularExpressions.Regex MyRegex1();
+    internal static partial System.Text.RegularExpressions.Regex MyRegex1();
 }

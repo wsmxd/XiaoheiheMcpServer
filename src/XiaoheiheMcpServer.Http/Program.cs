@@ -5,16 +5,7 @@ using XiaoheiheMcpServer.Shared.Models;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// 检查是否首次使用（是否存在 Cookie 文件）
-var headless = true;
-var dataDir = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "data");
-var cookiePath = Path.Combine(dataDir, "cookies.json");
-var isFirstTime = !File.Exists(cookiePath);
-if (isFirstTime)
-{
-    Console.WriteLine("首次运行检测：未找到 cookies.json，可能需要先进行登录。");
-    headless = false;
-}
+var headless = !args.Contains("--show-browser");
 
 // 注册XiaoheiheService为单例，默认使用无头模式
 builder.Services.AddSingleton(sp =>
@@ -50,6 +41,8 @@ app.MapGet("/", () => new
     {
         "check_login_status - 检查登录状态",
         "interactive_login - 交互式登录",
+        "get_login_qr_code - 使用二维码进行登录",
+        "get_user_profile - 获取用户个人信息",
         "publish_content - 发布图文内容",
         "publish_article - 发布文章",
         "publish_video - 发布视频",
@@ -107,6 +100,8 @@ app.MapPost("/mcp", async (HttpContext context, XiaoheiheService service, ILogge
             // 向后兼容：直接调用工具方法（非标准）
             "check_login_status" => await HandleCheckLoginStatus(service),
             "interactive_login" => await HandleInteractiveLogin(service, @params),
+            "get_login_qr_code" => await HandleGetLoginQrCode(service, @params),
+            "get_user_profile" => await HandleGetUserProfile(service, @params),
             "publish_content" => await HandlePublishContent(service, @params),
             "publish_article" => await HandlePublishArticle(service, @params),
             "publish_video" => await HandlePublishVideo(service, @params),
@@ -187,13 +182,38 @@ object HandleToolsList()
             new
             {
                 name = "interactive_login",
-                description = "打开浏览器窗口，让用户手动登录小黑盒（推荐首次登录使用）",
+                description = "打开浏览器窗口，让用户手动登录小黑盒（只有有头模式才行，启动程序的时候传入 --show-browser 参数）",
                 inputSchema = new
                 {
                     type = "object",
                     properties = new
                     {
                         waitTimeoutSeconds = new { type = "number", description = "等待用户登录的超时时间（秒），默认180秒" }
+                    },
+                    required = Array.Empty<string>()
+                }
+            },
+            new
+            {
+                name = "get_login_qr_code",
+                description = "获取登录二维码然后回自动打开图片让用户扫描，返回登录的结果（适合无头模式）",
+                inputSchema = new
+                {
+                    type = "object",
+                    properties = new { },
+                    required = Array.Empty<string>()
+                }
+            },
+            new
+            {
+                name = "get_user_profile",
+                description = "获取用户个人信息（需要登录状态）",
+                inputSchema = new
+                {
+                    type = "object",
+                    properties = new
+                    {
+                        pageSize = new { type = "number", description = "每页条数，默认10" }
                     },
                     required = Array.Empty<string>()
                 }
@@ -321,6 +341,8 @@ async Task<object> HandleToolsCall(XiaoheiheService service, JsonObject? @params
         {
             "check_login_status" => await HandleCheckLoginStatus(service),
             "interactive_login" => await HandleInteractiveLogin(service, toolParams),
+            "get_login_qr_code" => await HandleGetLoginQrCode(service, toolParams),
+            "get_user_profile" => await HandleGetUserProfile(service, toolParams),
             "publish_content" => await HandlePublishContent(service, toolParams),
             "publish_article" => await HandlePublishArticle(service, toolParams),
             "publish_video" => await HandlePublishVideo(service, toolParams),
@@ -417,6 +439,28 @@ async Task<object> HandleInteractiveLogin(XiaoheiheService service, JsonObject? 
     return status.IsLoggedIn
             ? $"✅ {status.Message}\n用户名: {status.Username}\n\n现在可以使用其他功能了！"
             : $"❌ {status.Message}";
+}
+
+async Task<object> HandleGetLoginQrCode(XiaoheiheService service, JsonObject? @params)
+{
+    var qrCodeInfo = await service.GetLoginQrCodeAsync();
+    if (qrCodeInfo == null)
+    {
+        return new { error = new { code = -32603, message = "Failed to get QR code" } };
+    }
+
+    return qrCodeInfo;
+}
+
+async Task<object> HandleGetUserProfile(XiaoheiheService service, JsonObject? @params)
+{
+    var pageSize = 10; // 默认每页10条
+    if (@params != null && @params.TryGetPropertyValue("pageSize", out var pageSizeNode))
+    {
+        pageSize = pageSizeNode?.GetValue<int>() ?? 10;
+    }
+
+    return await service.GetUserProfileAsync(pageSize);
 }
 
 async Task<object> HandlePublishContent(XiaoheiheService service, JsonObject? @params)

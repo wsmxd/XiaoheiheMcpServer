@@ -9,6 +9,7 @@ public class XiaoheiheService : IAsyncDisposable
     private readonly PublishService _publishService;
     private readonly ArticlePublishService _articlePublishService;
     private readonly InteractionService _interactionService;
+    private readonly UserProfileService _userProfileService;
     private readonly ILogger<XiaoheiheService> _logger;
 
     public XiaoheiheService(
@@ -22,6 +23,7 @@ public class XiaoheiheService : IAsyncDisposable
         _publishService = new PublishService(loggerFactory.CreateLogger<PublishService>(), headless);
         _articlePublishService = new ArticlePublishService(loggerFactory.CreateLogger<ArticlePublishService>(), headless);
         _interactionService = new InteractionService(loggerFactory.CreateLogger<InteractionService>(), headless);
+        _userProfileService = new UserProfileService(loggerFactory.CreateLogger<UserProfileService>(), headless);
     }
 
     #region 登录相关
@@ -35,12 +37,20 @@ public class XiaoheiheService : IAsyncDisposable
     }
 
     /// <summary>
-    /// 用户自行进行登录
+    /// 用户自行进行登录(需要使用有头模式启动)
     /// </summary>
     public async Task<LoginStatus> InteractiveLoginAsync(int waitTimeoutSeconds = 300)
     {
         _logger.LogInformation("调用交互式登录服务");
         return await _loginService.InteractiveLoginAsync(waitTimeoutSeconds);
+    }
+    /// <summary> 获取登录二维码
+    /// </summary> 
+    /// <returns>二维码信息，包括二维码数据和过期时间</returns>
+    public Task<QrCodeInfo> GetLoginQrCodeAsync()
+    {
+        _logger.LogInformation("调用登录二维码获取服务");
+        return _loginService.GetLoginQrCodeAsync();
     }
     #endregion
 
@@ -101,6 +111,17 @@ public class XiaoheiheService : IAsyncDisposable
     {
         _logger.LogInformation("调用评论发布服务");
         return _interactionService.PostCommentAsync(args);
+    }
+    #endregion
+
+    #region 个人信息相关
+    /// <summary>
+    /// 获取用户个人信息（需要登录状态）
+    /// </summary> <returns>用户的动态</returns>
+    public Task<object> GetUserProfileAsync(int pageSize = 10)
+    {
+        _logger.LogInformation("调用用户个人信息获取服务");
+        return _userProfileService.GetUserProfileAsync(pageSize);
     }
     #endregion
 
