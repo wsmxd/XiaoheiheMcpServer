@@ -280,7 +280,7 @@ public partial class InteractionService : BrowserBase
     /// <summary>
     /// 获取帖子详情
     /// </summary>
-    public async Task<McpToolResult> GetPostDetailAsync(PostDetailArgs args)
+    public async Task<PostDetail> GetPostDetailAsync(PostDetailArgs args)
     {
         try
         {
@@ -352,20 +352,24 @@ public partial class InteractionService : BrowserBase
             }
 
             // 5. 获取评论总数：slide-tab__tab-cnt
-            var commentCountElement = await _page.QuerySelectorAsync(".slide-tab__tab-cnt");
-            if (commentCountElement != null)
+            var commentCountElement = await _page.QuerySelectorAllAsync(".link-reply__operation-desc");
+            if (commentCountElement.Count > 0)
             {
-                var countText = await commentCountElement.TextContentAsync();
+                var countText = await commentCountElement.LastOrDefault().TextContentAsync();
                 int.TryParse(countText?.Trim() ?? "0", out var count);
                 postDetail.CommentCount = count;
             }
 
             // 6. 获取具体评论：每个评论在 link-comment__comment-item 类下
             var commentItems = await _page.QuerySelectorAllAsync(".link-comment__comment-item");
-            foreach (var commentItem in commentItems.Take(20)) // 限制最多20条评论
+            foreach (var commentItem in commentItems.Take(30)) // 限制最多30条评论
             {
                 try
                 {
+                    var author = await commentItem.QuerySelectorAsync(".info-box__username");
+                    var authorName = author != null 
+                        ? (await author.TextContentAsync() ?? "").Trim() 
+                        : "匿名用户";
                     // 评论内容：comment-item__content 只提取文字
                     var contentElem = await commentItem.QuerySelectorAsync(".comment-item__content");
                     var content = contentElem != null 
@@ -379,12 +383,27 @@ public partial class InteractionService : BrowserBase
                         : "0";
                     int.TryParse(likeText?.Trim() ?? "0", out var likeCount);
 
+                    // 获取回复的评论来构建层级结构（如果有）子评论的作者a.children-item__comment-creator
+                    // 回复的评论内容p.children-item__comment-content
+                    var replyAuthorLocator = await commentItem.QuerySelectorAsync("a.children-item__comment-creator");
+                    string? rAuthor = null;
+                    if (replyAuthorLocator != null)
+                        rAuthor = (await replyAuthorLocator.TextContentAsync())?.Trim();
+                    var replyContentLocator = await commentItem.QuerySelectorAsync("p.children-item__comment-content");
+                    string? rContent = null;
+                    if (replyContentLocator != null)
+                        rContent = (await replyContentLocator.TextContentAsync())?.Trim();
+
                     if (!string.IsNullOrEmpty(content))
                     {
                         postDetail.Comments.Add(new CommentItem
                         {
+                            Author = authorName,
                             Content = content,
-                            LikeCount = likeCount
+                            LikeCount = likeCount,
+                            Replies = !string.IsNullOrEmpty(rContent) 
+                                ? [new CommentItem { Author = rAuthor ?? "匿名用户", Content = rContent.Trim() }] 
+                                : []
                         });
                     }
                 }
@@ -394,45 +413,18 @@ public partial class InteractionService : BrowserBase
                     continue;
                 }
             }
-
             await SaveCookiesAsync();
 
-            // 格式化输出
-            var result = new System.Text.StringBuilder();
-            result.AppendLine($"📌 **{postDetail.Title}**\n");
-            
-            if (postDetail.CoverImages.Count > 0)
-                result.AppendLine($"🖼️ 封面图片: {postDetail.CoverImages.Count} 张");
-            
-            if (postDetail.Tags.Count > 0)
-                result.AppendLine($"🏷️ 标签: {string.Join(", ", postDetail.Tags)}");
-            
-            result.AppendLine($"\n📝 正文内容:\n{postDetail.Content}\n");
-            result.AppendLine($"💬 评论总数: {postDetail.CommentCount}");
-            
-            if (postDetail.Comments.Count > 0)
-            {
-                result.AppendLine($"\n📋 评论列表（前 {postDetail.Comments.Count} 条）:");
-                for (int i = 0; i < postDetail.Comments.Count; i++)
-                {
-                    var comment = postDetail.Comments[i];
-                    result.AppendLine($"\n{i + 1}. {comment.Content}");
-                    result.AppendLine($"   👍 {comment.LikeCount}");
-                }
-            }
-
-            return new McpToolResult
-            {
-                Content = [new() { Type = "text", Text = result.ToString() }]
-            };
+            return postDetail;
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "获取帖子详情失败");
-            return new McpToolResult
+            return new PostDetail
             {
-                Content = [new() { Type = "text", Text = $"❌ 获取帖子详情失败: {ex.Message}" }],
-                IsError = true
+                PostId = args.PostId,
+                Title = "获取帖子详情失败",
+                Content = $"❌ 获取帖子详情失败: {ex.Message}"
             };
         }
     }

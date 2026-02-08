@@ -6,7 +6,6 @@ using XiaoheiheMcpServer.Shared.Models;
 var builder = WebApplication.CreateBuilder(args);
 
 var headless = !args.Contains("--show-browser");
-headless = false; // 临时强制有头模式，方便调试
 // 注册XiaoheiheService为单例，默认使用无头模式
 builder.Services.AddSingleton(sp =>
 {

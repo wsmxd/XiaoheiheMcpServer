@@ -174,11 +174,14 @@ public class PostDetail
 /// </summary>
 public class CommentItem
 {
+    public string Author { get; set; } = string.Empty;
     /// <summary>评论内容</summary>
     public string Content { get; set; } = string.Empty;
     
     /// <summary>点赞数</summary>
     public int LikeCount { get; set; } = 0;
+    /// <summary>回复列表</summary>
+    public List<CommentItem> Replies { get; set; } = [];
 }
 
 /// <summary>
@@ -206,4 +209,11 @@ public class SearchResultItem
     
     /// <summary>图片列表</summary>
     public List<string> ImageUrls { get; set; } = [];
+}
+
+public class PostSummary
+{
+    public string Title { get; set; } = string.Empty;
+    public string ContentPreview { get; set; } = string.Empty;
+    public List<CommentItem> Comments { get; set; } = [];
 }

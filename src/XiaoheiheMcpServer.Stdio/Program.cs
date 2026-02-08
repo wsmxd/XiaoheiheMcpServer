@@ -253,7 +253,7 @@ file class XiaoheiheMcpTools
     /// </summary>
     [McpServerTool(Name = "get_post_detail")]
     [Description("获取小黑盒帖子详情")]
-    public static async Task<string> GetPostDetail(
+    public static async Task<PostDetail> GetPostDetail(
         XiaoheiheService service,
         ILogger<XiaoheiheMcpTools> logger,
         [Description("帖子ID")] string postId)
@@ -267,7 +267,7 @@ file class XiaoheiheMcpTools
         
         var result = await service.GetPostDetailAsync(args);
         
-        return string.Join("\n", result.Content.Select(c => c.Text));
+        return result;
     }
 
     /// <summary>

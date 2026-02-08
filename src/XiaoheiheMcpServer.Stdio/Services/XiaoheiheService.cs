@@ -105,7 +105,7 @@ public class XiaoheiheService : IAsyncDisposable
     /// <summary>
     /// 获取帖子详情
     /// </summary>
-    public Task<McpToolResult> GetPostDetailAsync(PostDetailArgs args)
+    public Task<PostDetail> GetPostDetailAsync(PostDetailArgs args)
     {
         _logger.LogInformation($"调用获取帖子详情服务: {args.PostId}");
         return _interactionService.GetPostDetailAsync(args);
