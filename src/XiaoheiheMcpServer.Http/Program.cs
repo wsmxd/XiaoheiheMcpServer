@@ -46,6 +46,7 @@ app.MapGet("/", () => new
         "publish_content - 发布图文内容",
         "publish_article - 发布文章",
         "publish_video - 发布视频",
+        "get_home_content - 获取首页内容",
         "search_content - 搜索内容",
         "get_post_detail - 获取帖子详情",
         "post_comment - 发表评论"
@@ -106,6 +107,7 @@ app.MapPost("/mcp", async (HttpContext context, XiaoheiheService service, ILogge
             "publish_article" => await HandlePublishArticle(service, @params),
             "publish_video" => await HandlePublishVideo(service, @params),
             "search_content" => await HandleSearchContent(service, @params),
+            "get_home_content" => await HandleGetHomeContent(service),
             "get_post_detail" => await HandleGetPostDetail(service, @params),
             "post_comment" => await HandlePostComment(service, @params),
             
@@ -274,6 +276,17 @@ object HandleToolsList()
             },
             new
             {
+                name = "get_home_content",
+                description = "获取小黑盒首页内容",
+                inputSchema = new
+                {
+                    type = "object",
+                    properties = new { },
+                    required = Array.Empty<string>()
+                }
+            },
+            new
+            {
                 name = "search_content",
                 description = "搜索小黑盒内容",
                 inputSchema = new
@@ -346,6 +359,7 @@ async Task<object> HandleToolsCall(XiaoheiheService service, JsonObject? @params
             "publish_content" => await HandlePublishContent(service, toolParams),
             "publish_article" => await HandlePublishArticle(service, toolParams),
             "publish_video" => await HandlePublishVideo(service, toolParams),
+            "get_home_content" => await HandleGetHomeContent(service),
             "search_content" => await HandleSearchContent(service, toolParams),
             "get_post_detail" => await HandleGetPostDetail(service, toolParams),
             "post_comment" => await HandlePostComment(service, toolParams),
@@ -504,6 +518,11 @@ async Task<object> HandlePublishVideo(XiaoheiheService service, JsonObject? @par
         return new { error = new { code = -32602, message = "tags 最多只能传 5 个" } };
 
     return await service.PublishVideoAsync(args);
+}
+
+async Task<object> HandleGetHomeContent(XiaoheiheService service)
+{
+    return await service.GetHomeContentAsync();
 }
 
 async Task<object> HandleSearchContent(XiaoheiheService service, JsonObject? @params)

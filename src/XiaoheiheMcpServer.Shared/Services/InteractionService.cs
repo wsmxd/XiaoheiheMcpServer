@@ -410,8 +410,85 @@ public partial class InteractionService : BrowserBase
         }
     }
 
+    /// <summary>
+    /// 获取首页推荐帖子列表
+    /// </summary>
+    /// <returns>帖子列表</returns>
+    public async Task<List<SearchResultItem>> GetHomePostsAsync()
+    {
+        try
+        {
+            _logger.LogInformation("获取首页推荐帖子列表");
+            await InitializeBrowserAsync();
+
+            await _page!.GotoAsync($"{BaseUrl}/app/bbs/home");
+            await _page.WaitForLoadStateAsync(LoadState.NetworkIdle);
+            await Task.Delay(400);
+            var linkItems = _page.Locator("a[href*='/app/bbs/link/']");
+            var linkCount = await linkItems.CountAsync();
+            _logger.LogInformation("首页推荐帖子数量: {Count}", linkCount);
+            var results = new List<SearchResultItem>();
+            for (var i = 0; i < linkCount; i++)
+            {
+                var linkItem = linkItems.Nth(i);
+                var href = await linkItem.GetAttributeAsync("href") ?? "";
+                var postId = ExtractPostId(href ?? "");
+
+                if (string.IsNullOrEmpty(postId)) continue;
+
+                var item = linkItem.Locator("xpath=ancestor::*[contains(@class,'content-list__item')][1]");
+                var hasItem = await item.CountAsync() > 0;
+                var scope = hasItem ? item : linkItem;
+
+                // 获取标题：div.bbs-content__title 内的文本（包含emoji）
+                var titleLocator = scope.Locator("div.bbs-content__title");
+                var title = await titleLocator.CountAsync() > 0
+                    ? await titleLocator.First.TextContentAsync()
+                    : "无标题";
+
+                // 获取正文：div.bbs-content__content 内的文本（包含emoji）
+                var contentLocator = scope.Locator("div.bbs-content__content");
+                var content = await contentLocator.CountAsync() > 0
+                    ? await contentLocator.First.TextContentAsync()
+                    : "无内容";
+
+                // 获取评论数：span.content-list__comment-cnt
+                var commentLocator = scope.Locator("span.content-list__comment-cnt");
+                var commentText = await commentLocator.CountAsync() > 0
+                    ? await commentLocator.First.TextContentAsync()
+                    : "0";
+                int.TryParse(commentText?.Trim() ?? "0", out var commentCount);
+
+                // 获取点赞数：span.content-list__like-cnt
+                var likeLocator = scope.Locator("span.content-list__like-cnt");
+                var likeText = await likeLocator.CountAsync() > 0
+                    ? await likeLocator.First.TextContentAsync()
+                    : "0";
+                int.TryParse(likeText?.Trim() ?? "0", out var likeCount);
+
+                results.Add(new SearchResultItem
+                {
+                    PostId = postId,
+                    Title = (title ?? "").Trim(),
+                    ContentPreview = (content ?? "").Trim(),
+                    Link = postId, // 只保存帖子ID
+                    CommentCount = commentCount,
+                    LikeCount = likeCount
+                });
+            }
+            return results;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "获取首页推荐帖子列表失败");
+            return [];
+        }
+    }
+
     [System.Text.RegularExpressions.GeneratedRegex(@"/app/bbs/link/(\d+)")]
     internal static partial System.Text.RegularExpressions.Regex MyRegex();
     [System.Text.RegularExpressions.GeneratedRegex(@"background-image:\s*url\(['""]*(.+?)['""]*\)")]
     internal static partial System.Text.RegularExpressions.Regex MyRegex1();
+    [System.Text.RegularExpressions.GeneratedRegex(@"(https?://[^""'\s]+?\.(?:png|jpeg))")]
+    internal static partial System.Text.RegularExpressions.Regex MyRegex2();
 }

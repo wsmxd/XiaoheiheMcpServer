@@ -86,6 +86,15 @@ public class XiaoheiheService : IAsyncDisposable
 
     #region 互动相关
     /// <summary>
+    /// 获取首页内容
+    /// </summary>
+    public Task<List<SearchResultItem>> GetHomeContentAsync()
+    {
+        _logger.LogInformation("调用首页内容获取服务");
+        return _interactionService.GetHomePostsAsync();
+    }
+
+    /// <summary>
     /// 搜索内容
     /// </summary>
     public Task<McpToolResult> SearchContentAsync(SearchArgs args)
