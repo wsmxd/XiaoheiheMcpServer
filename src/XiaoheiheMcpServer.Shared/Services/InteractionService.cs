@@ -142,6 +142,33 @@ public partial class InteractionService : BrowserBase
     }
 
     /// <summary>
+    /// 回复评论
+    /// </summary>
+    public async Task<object> ReplyCommentAsync(string content, string targetCommentContent)
+    {
+        await InitializeBrowserAsync();
+        await _page.ClickReplyCommentAsync(targetCommentContent, _logger);
+        // 1) 聚焦评论输入框 (ProseMirror hb-editor)
+        var editor = await _page.QuerySelectorAsync(".ProseMirror.hb-editor");
+        if (editor == null)
+        {
+            throw new Exception("未找到评论输入框 .ProseMirror.hb-editor");
+        }
+
+        await editor.ClickAsync();
+        await Task.Delay(200);
+        await _page.Keyboard.TypeAsync(content);
+        // 2) 点击发布评论按钮.link-reply__menu-btn
+        await Task.Delay(200);
+        await _page.Locator("button.link-reply__menu-btn.hb-color__btn--confirm").First.ClickAsync();
+        _logger.LogInformation("评论回复成功");
+        return new
+        {
+            Content = "✅ 评论回复成功！",
+        };
+    }
+
+    /// <summary>
     /// 搜索内容
     /// </summary>
     public async Task<McpToolResult> SearchAsync(SearchArgs args)

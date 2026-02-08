@@ -6,7 +6,7 @@ using XiaoheiheMcpServer.Shared.Models;
 var builder = WebApplication.CreateBuilder(args);
 
 var headless = !args.Contains("--show-browser");
-
+headless = false; // 临时强制有头模式，方便调试
 // 注册XiaoheiheService为单例，默认使用无头模式
 builder.Services.AddSingleton(sp =>
 {
@@ -49,7 +49,8 @@ app.MapGet("/", () => new
         "get_home_content - 获取首页内容",
         "search_content - 搜索内容",
         "get_post_detail - 获取帖子详情",
-        "post_comment - 发表评论"
+        "post_comment - 发表评论",
+        "reply_comment - 回复评论"
     }
 });
 
@@ -110,6 +111,7 @@ app.MapPost("/mcp", async (HttpContext context, XiaoheiheService service, ILogge
             "get_home_content" => await HandleGetHomeContent(service),
             "get_post_detail" => await HandleGetPostDetail(service, @params),
             "post_comment" => await HandlePostComment(service, @params),
+            "reply_comment" => await HandleReplyComment(service, @params),
             
             _ => new { error = new { code = -32601, message = $"Method not found: {method}" } }
         };
@@ -330,6 +332,21 @@ object HandleToolsList()
                     },
                     required = new[] { "postId", "content" }
                 }
+            },
+            new
+            {
+                name = "reply_comment",
+                description = "回复评论（需要先到帖子的详情信息页然后获取到具体的评论元素，然后右键点击该评论元素获取到回复按钮元素，最后调用这个工具传入回复内容即可）",
+                inputSchema = new
+                {
+                    type = "object",
+                    properties = new
+                    {
+                        targetCommentContent = new { type = "string", description = "要回复的目标评论的内容，用于定位到具体的评论元素" },
+                        content = new { type = "string", description = "回复内容" }
+                    },
+                    required = new[] { "targetCommentContent", "content" }
+                }
             }
         }
     };
@@ -363,6 +380,7 @@ async Task<object> HandleToolsCall(XiaoheiheService service, JsonObject? @params
             "search_content" => await HandleSearchContent(service, toolParams),
             "get_post_detail" => await HandleGetPostDetail(service, toolParams),
             "post_comment" => await HandlePostComment(service, toolParams),
+            "reply_comment" => await HandleReplyComment(service, toolParams),
             _ => new { error = new { code = -32601, message = $"Unknown tool: {toolName}" } }
         };
 
@@ -550,6 +568,17 @@ async Task<object> HandlePostComment(XiaoheiheService service, JsonObject? @para
         return new { error = new { code = -32602, message = "Missing or invalid required parameters: postId, content" } };
 
     return await service.PostCommentAsync(args);
+}
+
+async Task<object> HandleReplyComment(XiaoheiheService service, JsonObject? @params)
+{
+    var targetCommentContent = @params?["targetCommentContent"]?.GetValue<string>();
+    var content = @params?["content"]?.GetValue<string>();
+
+    if (string.IsNullOrEmpty(targetCommentContent) || string.IsNullOrEmpty(content))
+        return new { error = new { code = -32602, message = "Missing or invalid required parameters: targetCommentContent, content" } };
+
+    return await service.ReplyCommentAsync(content, targetCommentContent);
 }
 
 #endregion

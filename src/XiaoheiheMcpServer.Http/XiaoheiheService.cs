@@ -121,6 +121,15 @@ public class XiaoheiheService : IAsyncDisposable
         _logger.LogInformation("调用评论发布服务");
         return _interactionService.PostCommentAsync(args);
     }
+
+    /// <summary>
+    /// 回复评论
+    /// </summary>
+    public async Task<object> ReplyCommentAsync(string content, string targetCommentContent)
+    {
+        _logger.LogInformation("调用评论回复服务");
+        return await _interactionService.ReplyCommentAsync(content, targetCommentContent);
+    }
     #endregion
 
     #region 个人信息相关
