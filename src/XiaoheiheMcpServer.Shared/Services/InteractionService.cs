@@ -144,28 +144,93 @@ public partial class InteractionService : BrowserBase
     /// <summary>
     /// 回复评论
     /// </summary>
-    public async Task<object> ReplyCommentAsync(string content, string targetCommentContent)
+    public async Task<McpToolResult> ReplyCommentAsync(ReplyCommentArgs args)
     {
-        await InitializeBrowserAsync();
-        await _page.ClickReplyCommentAsync(targetCommentContent, _logger);
-        // 1) 聚焦评论输入框 (ProseMirror hb-editor)
-        var editor = await _page.QuerySelectorAsync(".ProseMirror.hb-editor");
-        if (editor == null)
+        try
         {
-            throw new Exception("未找到评论输入框 .ProseMirror.hb-editor");
-        }
+            _logger.LogInformation("回复评论，帖子: {PostId}, 目标评论: {Target}", args.PostId, 
+                args.TargetCommentContent.Length > 30 
+                    ? args.TargetCommentContent.Substring(0, 30) + "..." 
+                    : args.TargetCommentContent);
+            
+            await InitializeBrowserAsync();
 
-        await editor.ClickAsync();
-        await Task.Delay(200);
-        await _page.Keyboard.TypeAsync(content);
-        // 2) 点击发布评论按钮.link-reply__menu-btn
-        await Task.Delay(200);
-        await _page.Locator("button.link-reply__menu-btn.hb-color__btn--confirm").First.ClickAsync();
-        _logger.LogInformation("评论回复成功");
-        return new
+            // 1) 导航到帖子页面
+            await _page!.GotoAsync($"{BaseUrl}/app/bbs/link/{args.PostId}");
+            await _page.WaitForLoadStateAsync(LoadState.NetworkIdle);
+            await Task.Delay(2000);
+
+            // 2) 点击目标评论的回复按钮
+            var clicked = await _page.ClickReplyCommentAsync(args.TargetCommentContent, _logger);
+            if (!clicked)
+            {
+                throw new Exception($"未找到内容为 \"{args.TargetCommentContent}\" 的评论，或无法点击回复按钮");
+            }
+            
+            await Task.Delay(500);
+
+            // 3) 聚焦评论输入框 (ProseMirror hb-editor)
+            var editor = await _page.QuerySelectorAsync(".ProseMirror.hb-editor");
+            if (editor == null)
+            {
+                throw new Exception("未找到评论输入框 .ProseMirror.hb-editor");
+            }
+
+            await editor.ClickAsync();
+            await Task.Delay(300);
+            await _page.Keyboard.TypeAsync(args.Content);
+            await Task.Delay(500);
+
+            // 4) 点击发布评论按钮
+            var submitSelectors = new[]
+            {
+                ".link-reply__menu-btn.hb-color__btn--confirm",
+                "button:has-text('发送')",
+                "button:has-text('回复')",
+                "button[class*='submit']"
+            };
+
+            var submitClicked = false;
+            foreach (var selector in submitSelectors)
+            {
+                var btn = await _page.QuerySelectorAsync(selector);
+                if (btn != null && await btn.IsVisibleAsync())
+                {
+                    await btn.ClickAsync();
+                    submitClicked = true;
+                    break;
+                }
+            }
+
+            if (!submitClicked)
+            {
+                throw new Exception("未找到回复发布按钮");
+            }
+
+            await Task.Delay(2000);
+            await SaveCookiesAsync();
+
+            _logger.LogInformation("评论回复成功");
+            return new McpToolResult
+            {
+                Content =
+                [
+                    new() { Type = "text", Text = $"✅ 评论回复成功！\n回复内容: {args.Content}" }
+                ]
+            };
+        }
+        catch (Exception ex)
         {
-            Content = "✅ 评论回复成功！",
-        };
+            _logger.LogError(ex, "回复评论失败");
+            return new McpToolResult
+            {
+                Content =
+                [
+                    new() { Type = "text", Text = $"❌ 回复评论失败: {ex.Message}" }
+                ],
+                IsError = true
+            };
+        }
     }
 
     /// <summary>
@@ -355,9 +420,13 @@ public partial class InteractionService : BrowserBase
             var commentCountElement = await _page.QuerySelectorAllAsync(".link-reply__operation-desc");
             if (commentCountElement.Count > 0)
             {
-                var countText = await commentCountElement.LastOrDefault().TextContentAsync();
-                int.TryParse(countText?.Trim() ?? "0", out var count);
-                postDetail.CommentCount = count;
+                var lastElement = commentCountElement.LastOrDefault();
+                if (lastElement != null)
+                {
+                    var countText = await lastElement.TextContentAsync();
+                    int.TryParse(countText?.Trim() ?? "0", out var count);
+                    postDetail.CommentCount = count;
+                }
             }
 
             // 6. 获取具体评论：每个评论在 link-comment__comment-item 类下

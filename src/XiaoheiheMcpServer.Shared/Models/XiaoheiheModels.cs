@@ -112,6 +112,21 @@ public class CommentArgs
 }
 
 /// <summary>
+/// 回复评论参数
+/// </summary>
+public class ReplyCommentArgs
+{
+    [JsonPropertyName("postId")]
+    public string PostId { get; set; } = string.Empty;
+    
+    [JsonPropertyName("targetCommentContent")]
+    public string TargetCommentContent { get; set; } = string.Empty;
+    
+    [JsonPropertyName("content")]
+    public string Content { get; set; } = string.Empty;
+}
+
+/// <summary>
 /// 搜索参数
 /// </summary>
 public class SearchArgs

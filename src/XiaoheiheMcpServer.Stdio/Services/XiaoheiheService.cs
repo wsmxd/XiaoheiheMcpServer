@@ -111,6 +111,15 @@ public class XiaoheiheService : IAsyncDisposable
         return _interactionService.GetPostDetailAsync(args);
     }
 
+    /// <summary>
+    /// 回复评论
+    /// </summary>
+    public Task<McpToolResult> ReplyCommentAsync(ReplyCommentArgs args)
+    {
+        _logger.LogInformation($"调用回复评论服务: {args.PostId}");
+        return _interactionService.ReplyCommentAsync(args);
+    }
+
     #endregion
 
     public async ValueTask DisposeAsync()

@@ -166,6 +166,14 @@
   - `images`: 评论图片路径列表（可选，本地绝对路径）
 - 状态：✅ 已验证
 
+### 9. reply_comment
+回复评论 ⚠（如果评论数比较多的话，会失败）
+- 参数：
+  - `postId`: 帖子ID（必需）
+  - `targetCommentContent`: 要回复的目标评论内容，用于定位评论（必需）
+  - `content`: 回复内容（必需）
+- 状态：✅ 已验证
+
 ## 数据存储
 
 - Cookies 存储在 `data/cookies.json`

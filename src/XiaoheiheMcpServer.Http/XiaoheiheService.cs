@@ -125,10 +125,10 @@ public class XiaoheiheService : IAsyncDisposable
     /// <summary>
     /// 回复评论
     /// </summary>
-    public async Task<object> ReplyCommentAsync(string content, string targetCommentContent)
+    public Task<McpToolResult> ReplyCommentAsync(ReplyCommentArgs args)
     {
         _logger.LogInformation("调用评论回复服务");
-        return await _interactionService.ReplyCommentAsync(content, targetCommentContent);
+        return _interactionService.ReplyCommentAsync(args);
     }
     #endregion
 
