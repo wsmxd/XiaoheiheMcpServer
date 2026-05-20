@@ -1,6 +1,8 @@
 using Microsoft.Playwright;
 using Microsoft.Extensions.Logging;
 using Newtonsoft.Json;
+using System.Diagnostics;
+using System.Text.RegularExpressions;
 
 namespace XiaoheiheMcpServer.Shared.Services;
 
@@ -15,6 +17,7 @@ public abstract class BrowserBase : IAsyncDisposable
     private static IBrowserContext? _sharedContext;
     private static readonly SemaphoreSlim _browserLock = new(1, 1);
     private static bool _headlessMode = true;
+    private const int MinimumChromiumMajorVersion = 120;
     
     // 实例专用资源 - 每个服务实例有自己的标签页
     protected IPage? _page;
@@ -46,7 +49,8 @@ public abstract class BrowserBase : IAsyncDisposable
             {
                 _logger.LogInformation("首次启动，初始化共享浏览器实例...");
                 _sharedPlaywright = await Playwright.CreateAsync();
-                _sharedBrowser = await _sharedPlaywright.Chromium.LaunchAsync(new BrowserTypeLaunchOptions
+
+                var launchOptions = new BrowserTypeLaunchOptions
                 {
                     Headless = _headlessMode,
                     Args =
@@ -55,7 +59,20 @@ public abstract class BrowserBase : IAsyncDisposable
                         "--disable-dev-shm-usage",
                         "--disable-blink-features=AutomationControlled"
                     ]
-                });
+                };
+
+                var chromiumExecutablePath = FindChromiumExecutable(_logger);
+                if (!string.IsNullOrWhiteSpace(chromiumExecutablePath))
+                {
+                    launchOptions.ExecutablePath = chromiumExecutablePath;
+                    _logger.LogInformation("使用本地 Chromium/Chrome 可执行文件: {Path}", chromiumExecutablePath);
+                }
+                else
+                {
+                    _logger.LogWarning("未找到主版本 >= {Version} 的本地 Chromium/Chrome，将回退到 Playwright 默认浏览器。", MinimumChromiumMajorVersion);
+                }
+
+                _sharedBrowser = await _sharedPlaywright.Chromium.LaunchAsync(launchOptions);
 
                 _sharedContext = await _sharedBrowser.NewContextAsync(new BrowserNewContextOptions
                 {
@@ -148,6 +165,238 @@ public abstract class BrowserBase : IAsyncDisposable
         using var httpClient = new HttpClient();
         var imageBytes = await httpClient.GetByteArrayAsync(imageUrl);
         return Convert.ToBase64String(imageBytes);
+    }
+
+    private static string? FindChromiumExecutable(ILogger logger)
+    {
+        foreach (var candidate in GetChromiumExecutableCandidates().Distinct(GetPathComparer()))
+        {
+            if (string.IsNullOrWhiteSpace(candidate) || !File.Exists(candidate))
+            {
+                continue;
+            }
+
+            var majorVersion = GetChromiumMajorVersion(candidate);
+            if (majorVersion >= MinimumChromiumMajorVersion)
+            {
+                return candidate;
+            }
+
+            if (majorVersion.HasValue)
+            {
+                logger.LogWarning(
+                    "忽略 Chromium/Chrome 可执行文件 {Path}，主版本 {Version} 低于最低要求 {MinimumVersion}",
+                    candidate,
+                    majorVersion.Value,
+                    MinimumChromiumMajorVersion);
+            }
+            else
+            {
+                logger.LogDebug("无法识别 Chromium/Chrome 版本，跳过: {Path}", candidate);
+            }
+        }
+
+        return null;
+    }
+
+    private static IEnumerable<string> GetChromiumExecutableCandidates()
+    {
+        var explicitPath = Environment.GetEnvironmentVariable("XIAOHEIHE_CHROMIUM_PATH");
+        if (!string.IsNullOrWhiteSpace(explicitPath))
+        {
+            yield return explicitPath;
+        }
+
+        foreach (var root in GetPlaywrightBrowserRoots())
+        {
+            foreach (var executable in GetPlaywrightChromiumExecutables(root))
+            {
+                yield return executable;
+            }
+        }
+
+        foreach (var executable in GetCommonChromiumExecutables())
+        {
+            yield return executable;
+        }
+
+        foreach (var executable in GetPathChromiumExecutables())
+        {
+            yield return executable;
+        }
+    }
+
+    private static IEnumerable<string> GetPlaywrightBrowserRoots()
+    {
+        var browsersPath = Environment.GetEnvironmentVariable("PLAYWRIGHT_BROWSERS_PATH");
+        if (!string.IsNullOrWhiteSpace(browsersPath) && browsersPath != "0")
+        {
+            yield return browsersPath;
+        }
+
+        yield return Path.Combine(AppContext.BaseDirectory, "ms-playwright");
+
+        var defaultPath = GetDefaultPlaywrightBrowsersPath();
+        if (!string.IsNullOrWhiteSpace(defaultPath))
+        {
+            yield return defaultPath;
+        }
+    }
+
+    private static string? GetDefaultPlaywrightBrowsersPath()
+    {
+        if (OperatingSystem.IsWindows())
+        {
+            var localAppData = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
+            return string.IsNullOrWhiteSpace(localAppData) ? null : Path.Combine(localAppData, "ms-playwright");
+        }
+
+        var home = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
+        if (string.IsNullOrWhiteSpace(home))
+        {
+            return null;
+        }
+
+        return OperatingSystem.IsMacOS()
+            ? Path.Combine(home, "Library", "Caches", "ms-playwright")
+            : Path.Combine(home, ".cache", "ms-playwright");
+    }
+
+    private static IEnumerable<string> GetPlaywrightChromiumExecutables(string root)
+    {
+        if (string.IsNullOrWhiteSpace(root) || !Directory.Exists(root))
+        {
+            yield break;
+        }
+
+        foreach (var directory in Directory.GetDirectories(root, "chromium-*")
+                     .OrderByDescending(ExtractTrailingNumber))
+        {
+            if (OperatingSystem.IsWindows())
+            {
+                yield return Path.Combine(directory, "chrome-win", "chrome.exe");
+            }
+            else if (OperatingSystem.IsMacOS())
+            {
+                yield return Path.Combine(directory, "chrome-mac", "Chromium.app", "Contents", "MacOS", "Chromium");
+            }
+            else
+            {
+                yield return Path.Combine(directory, "chrome-linux", "chrome");
+            }
+        }
+    }
+
+    private static IEnumerable<string> GetCommonChromiumExecutables()
+    {
+        if (OperatingSystem.IsWindows())
+        {
+            var localAppData = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
+            var programFiles = Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles);
+            var programFilesX86 = Environment.GetFolderPath(Environment.SpecialFolder.ProgramFilesX86);
+
+            yield return Path.Combine(localAppData, "Chromium", "Application", "chrome.exe");
+            yield return Path.Combine(localAppData, "Google", "Chrome", "Application", "chrome.exe");
+            yield return Path.Combine(programFiles, "Google", "Chrome", "Application", "chrome.exe");
+            yield return Path.Combine(programFilesX86, "Google", "Chrome", "Application", "chrome.exe");
+            yield return Path.Combine(programFiles, "Microsoft", "Edge", "Application", "msedge.exe");
+            yield return Path.Combine(programFilesX86, "Microsoft", "Edge", "Application", "msedge.exe");
+            yield break;
+        }
+
+        if (OperatingSystem.IsMacOS())
+        {
+            var home = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
+
+            yield return "/Applications/Chromium.app/Contents/MacOS/Chromium";
+            yield return "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome";
+            yield return "/Applications/Microsoft Edge.app/Contents/MacOS/Microsoft Edge";
+
+            if (!string.IsNullOrWhiteSpace(home))
+            {
+                yield return Path.Combine(home, "Applications", "Chromium.app", "Contents", "MacOS", "Chromium");
+                yield return Path.Combine(home, "Applications", "Google Chrome.app", "Contents", "MacOS", "Google Chrome");
+                yield return Path.Combine(home, "Applications", "Microsoft Edge.app", "Contents", "MacOS", "Microsoft Edge");
+            }
+
+            yield break;
+        }
+
+        yield return "/usr/bin/chromium";
+        yield return "/usr/bin/chromium-browser";
+        yield return "/usr/bin/google-chrome";
+        yield return "/usr/bin/google-chrome-stable";
+        yield return "/usr/bin/microsoft-edge";
+        yield return "/usr/bin/microsoft-edge-stable";
+        yield return "/snap/bin/chromium";
+    }
+
+    private static IEnumerable<string> GetPathChromiumExecutables()
+    {
+        var path = Environment.GetEnvironmentVariable("PATH");
+        if (string.IsNullOrWhiteSpace(path))
+        {
+            yield break;
+        }
+
+        var executableNames = OperatingSystem.IsWindows()
+            ? ["chrome.exe", "chromium.exe", "msedge.exe"]
+            : new[] { "chromium", "chromium-browser", "google-chrome", "google-chrome-stable", "microsoft-edge", "microsoft-edge-stable" };
+
+        foreach (var directory in path.Split(Path.PathSeparator, StringSplitOptions.RemoveEmptyEntries))
+        {
+            var trimmedDirectory = directory.Trim('"');
+            foreach (var executableName in executableNames)
+            {
+                yield return Path.Combine(trimmedDirectory, executableName);
+            }
+        }
+    }
+
+    private static int? GetChromiumMajorVersion(string executablePath)
+    {
+        try
+        {
+            using var process = Process.Start(new ProcessStartInfo(executablePath, "--version")
+            {
+                RedirectStandardOutput = true,
+                RedirectStandardError = true,
+                UseShellExecute = false,
+                CreateNoWindow = true
+            });
+
+            if (process == null)
+            {
+                return null;
+            }
+
+            if (!process.WaitForExit(3000))
+            {
+                process.Kill(true);
+                return null;
+            }
+
+            var versionText = process.StandardOutput.ReadToEnd() + process.StandardError.ReadToEnd();
+            var match = Regex.Match(versionText, @"\b(\d{2,3})\.\d+\.");
+            return match.Success ? int.Parse(match.Groups[1].Value) : null;
+        }
+        catch
+        {
+            return null;
+        }
+    }
+
+    private static long ExtractTrailingNumber(string path)
+    {
+        var match = Regex.Match(Path.GetFileName(path), @"(\d+)$");
+        return match.Success ? long.Parse(match.Groups[1].Value) : 0;
+    }
+
+    private static StringComparer GetPathComparer()
+    {
+        return OperatingSystem.IsWindows() || OperatingSystem.IsMacOS()
+            ? StringComparer.OrdinalIgnoreCase
+            : StringComparer.Ordinal;
     }
 
     public virtual async ValueTask DisposeAsync()

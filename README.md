@@ -16,7 +16,7 @@
 
 1. 下载发布压缩包（内含 `XiaoheiheMcpServer.Http.exe` 与脚本）
 2. 解压到任意目录，例如：`D:\Tools\XiaoheiheMcpServer\`
-3. 安装浏览器依赖：`install-chromium.bat`（仅首次需要）
+3. 安装依赖：Windows 运行 `setup.ps1` 或 `install-chromium.bat`，macOS/Linux 运行 `./setup.sh`（仅首次需要）
 4. 直接运行：`XiaoheiheMcpServer.Http.exe`（默认监听 HTTP 端口 5000）
 
 ### 方式二：使用发布的单文件 exe（stdio）
@@ -36,8 +36,8 @@
 2. 构建并安装 Playwright 浏览器
   ```bash
   dotnet build
-  .\playwright.ps1 install
-  或者使用初始化install-chromium.bat脚本来安装
+  .\playwright.ps1 install chromium
+  或者使用初始化脚本安装：Windows 运行 setup.ps1，macOS/Linux 运行 ./setup.sh
   ```
 3. 运行（开发模式）
   ```bash
@@ -83,8 +83,9 @@
 ## 首次使用
 
 1. **先跑一次初始化脚本**（发布包内已附带）
-  - CMD: `install-chromium.bat`
-  - 作用：安装 Playwright 浏览器
+  - Windows: `setup.ps1` 或 `install-chromium.bat`
+  - macOS/Linux: `./setup.sh`
+  - 作用：检测/安装 .NET，检测本机 Chromium/Chrome/Edge 主版本是否 >= 120；不满足时安装 Playwright Chromium
 
 2. **使用参数来决定模式**：
   - 默认是**无头模式**（后台运行）
@@ -182,7 +183,7 @@
 
 ## 注意事项
 
-1. **浏览器安装**: 首次运行必须下载 Chromium 浏览器（约 150MB）
+1. **浏览器安装**: 默认会优先使用本机主版本 >= 120 的 Chromium/Chrome/Edge；未找到时需要下载 Playwright Chromium（约 150MB）
 2. **图片路径**: 图片路径需使用本地绝对路径
 3. **页面选择器**: 请根据小黑盒实际页面结构调整选择器（在 XiaoheiheService.cs 中）
 4. **运行模式**: 建议生产环境使用无头模式，调试时使用有界面模式
@@ -191,7 +192,7 @@
 ## 故障排查
 
 ### 问题：服务器无法启动
-- 检查是否未安装playwright浏览器，重新运行 `install-chromium.bat` 或执行 `playwright install chromium` 安装浏览器
+- 检查是否缺少可用浏览器，Windows 重新运行 `setup.ps1` 或 `install-chromium.bat`，macOS/Linux 运行 `./setup.sh`，或执行 `playwright install chromium` 安装浏览器
 
 ### 问题：登录失败或 Cookie 过期
 - 删除 `data/cookies.json` 文件

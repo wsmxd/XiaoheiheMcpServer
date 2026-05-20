@@ -2,6 +2,7 @@ param(
     [string] $DotnetChannel = "LTS",
     [string] $PlaywrightBrowsers = "chromium",
     [string] $PlaywrightScriptPath = "",
+    [int] $MinimumChromiumMajorVersion = 120,
     [switch] $ForceDotnetInstall
 )
 
@@ -34,9 +35,9 @@ function Ensure-Tls12 {
 function Add-ToPathOnce([string] $Dir) {
     if ([string]::IsNullOrWhiteSpace($Dir)) { return }
     if (-not (Test-Path -LiteralPath $Dir)) { return }
-    $pathParts = $env:Path -split ';' | Where-Object { -not [string]::IsNullOrWhiteSpace($_) }
+    $pathParts = $env:Path -split [IO.Path]::PathSeparator | Where-Object { -not [string]::IsNullOrWhiteSpace($_) }
     if ($pathParts -notcontains $Dir) {
-        $env:Path = "$Dir;" + $env:Path
+        $env:Path = "$Dir$([IO.Path]::PathSeparator)$env:Path"
     }
 }
 
@@ -44,18 +45,150 @@ function Test-DotnetAvailable {
     return [bool](Get-Command dotnet -ErrorAction SilentlyContinue)
 }
 
+function Test-IsWindows {
+    return [System.Runtime.InteropServices.RuntimeInformation]::IsOSPlatform([System.Runtime.InteropServices.OSPlatform]::Windows)
+}
+
+function Test-IsMacOS {
+    return [System.Runtime.InteropServices.RuntimeInformation]::IsOSPlatform([System.Runtime.InteropServices.OSPlatform]::OSX)
+}
+
+function Get-UserHome {
+    if (-not [string]::IsNullOrWhiteSpace($env:USERPROFILE)) { return $env:USERPROFILE }
+    return $HOME
+}
+
+function Get-DefaultDotnetDir {
+    if (Test-IsWindows) {
+        return Join-Path $env:LocalAppData 'Microsoft\dotnet'
+    }
+
+    return Join-Path (Get-UserHome) '.dotnet'
+}
+
+function Get-DotnetToolsDir {
+    return Join-Path (Join-Path (Get-UserHome) '.dotnet') 'tools'
+}
+
+function Get-DefaultPlaywrightBrowsersPath {
+    if (-not [string]::IsNullOrWhiteSpace($env:PLAYWRIGHT_BROWSERS_PATH) -and $env:PLAYWRIGHT_BROWSERS_PATH -ne '0') {
+        return $env:PLAYWRIGHT_BROWSERS_PATH
+    }
+
+    if (Test-IsWindows) {
+        return Join-Path $env:LocalAppData 'ms-playwright'
+    }
+
+    if (Test-IsMacOS) {
+        return Join-Path (Join-Path (Join-Path (Get-UserHome) 'Library') 'Caches') 'ms-playwright'
+    }
+
+    return Join-Path (Join-Path (Get-UserHome) '.cache') 'ms-playwright'
+}
+
+function Get-ChromiumVersion([string] $ExecutablePath) {
+    if (-not (Test-Path -LiteralPath $ExecutablePath)) { return $null }
+
+    try {
+        $output = & $ExecutablePath --version 2>&1 | Out-String
+        if ($output -match '\b(\d{2,3})\.\d+\.') {
+            return [int] $Matches[1]
+        }
+    } catch {
+        return $null
+    }
+
+    return $null
+}
+
+function Test-ChromiumExecutable([string] $ExecutablePath, [int] $MinimumVersion) {
+    $version = Get-ChromiumVersion $ExecutablePath
+    return $null -ne $version -and $version -ge $MinimumVersion
+}
+
+function Get-PlaywrightChromiumExecutables([string] $BrowsersRoot) {
+    if ([string]::IsNullOrWhiteSpace($BrowsersRoot) -or -not (Test-Path -LiteralPath $BrowsersRoot)) { return @() }
+
+    $dirs = Get-ChildItem -Path $BrowsersRoot -Directory -ErrorAction SilentlyContinue |
+        Where-Object { $_.Name -like 'chromium-*' } |
+        Sort-Object Name -Descending
+
+    $executables = @()
+    foreach ($dir in $dirs) {
+        if (Test-IsWindows) {
+            $executables += Join-Path (Join-Path $dir.FullName 'chrome-win') 'chrome.exe'
+        } elseif (Test-IsMacOS) {
+            $executables += Join-Path (Join-Path (Join-Path (Join-Path (Join-Path $dir.FullName 'chrome-mac') 'Chromium.app') 'Contents') 'MacOS') 'Chromium'
+        } else {
+            $executables += Join-Path (Join-Path $dir.FullName 'chrome-linux') 'chrome'
+        }
+    }
+
+    return $executables
+}
+
+function Get-SystemChromiumExecutables {
+    $executables = @()
+
+    if (-not [string]::IsNullOrWhiteSpace($env:XIAOHEIHE_CHROMIUM_PATH)) {
+        $executables += $env:XIAOHEIHE_CHROMIUM_PATH
+    }
+
+    if (Test-IsWindows) {
+        $roots = @($env:LocalAppData, $env:ProgramFiles, ${env:ProgramFiles(x86)}) | Where-Object { -not [string]::IsNullOrWhiteSpace($_) }
+        foreach ($root in $roots) {
+            $executables += Join-Path (Join-Path (Join-Path $root 'Chromium') 'Application') 'chrome.exe'
+            $executables += Join-Path (Join-Path (Join-Path (Join-Path $root 'Google') 'Chrome') 'Application') 'chrome.exe'
+            $executables += Join-Path (Join-Path (Join-Path (Join-Path $root 'Microsoft') 'Edge') 'Application') 'msedge.exe'
+        }
+    } elseif (Test-IsMacOS) {
+        $executables += '/Applications/Chromium.app/Contents/MacOS/Chromium'
+        $executables += '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome'
+        $executables += '/Applications/Microsoft Edge.app/Contents/MacOS/Microsoft Edge'
+        $executables += (Join-Path (Join-Path (Join-Path (Join-Path (Join-Path (Get-UserHome) 'Applications') 'Chromium.app') 'Contents') 'MacOS') 'Chromium')
+        $executables += (Join-Path (Join-Path (Join-Path (Join-Path (Join-Path (Get-UserHome) 'Applications') 'Google Chrome.app') 'Contents') 'MacOS') 'Google Chrome')
+        $executables += (Join-Path (Join-Path (Join-Path (Join-Path (Join-Path (Get-UserHome) 'Applications') 'Microsoft Edge.app') 'Contents') 'MacOS') 'Microsoft Edge')
+    } else {
+        $executables += '/usr/bin/chromium'
+        $executables += '/usr/bin/chromium-browser'
+        $executables += '/usr/bin/google-chrome'
+        $executables += '/usr/bin/google-chrome-stable'
+        $executables += '/usr/bin/microsoft-edge'
+        $executables += '/usr/bin/microsoft-edge-stable'
+        $executables += '/snap/bin/chromium'
+    }
+
+    foreach ($name in @('chromium', 'chromium-browser', 'google-chrome', 'google-chrome-stable', 'chrome', 'msedge', 'microsoft-edge', 'microsoft-edge-stable')) {
+        $command = Get-Command $name -ErrorAction SilentlyContinue
+        if ($command) { $executables += $command.Source }
+    }
+
+    return $executables | Where-Object { -not [string]::IsNullOrWhiteSpace($_) } | Select-Object -Unique
+}
+
+function Test-UsableChromium([int] $MinimumVersion) {
+    $candidates = @()
+    $candidates += Get-PlaywrightChromiumExecutables (Get-DefaultPlaywrightBrowsersPath)
+    $candidates += Get-SystemChromiumExecutables
+
+    foreach ($candidate in ($candidates | Select-Object -Unique)) {
+        if (Test-ChromiumExecutable $candidate $MinimumVersion) {
+            Write-Ok "检测到可用 Chromium/Chrome：$candidate"
+            return $true
+        }
+    }
+
+    return $false
+}
+
 try {
     Write-Step "开始环境配置（PowerShell $($PSVersionTable.PSVersion)，时间：$(Get-Date -Format 'yyyy-MM-dd HH:mm:ss')）"
-
-    if ($env:OS -ne 'Windows_NT') {
-        Write-Warn "当前不是 Windows 环境；脚本主要面向 Windows。"
-    }
 
     Ensure-Tls12
 
     # 1) 安装/确认 .NET SDK
-    $dotnetDir = Join-Path $env:LocalAppData "Microsoft\dotnet"
-    $dotnetToolsDir = Join-Path $env:UserProfile ".dotnet\tools"
+    $dotnetDir = Get-DefaultDotnetDir
+    $dotnetToolsDir = Get-DotnetToolsDir
 
     Add-ToPathOnce $dotnetDir
     Add-ToPathOnce $dotnetToolsDir
@@ -66,7 +199,7 @@ try {
     } else {
         Write-Step "正在安装/更新 .NET SDK（Channel=$DotnetChannel，InstallDir=$dotnetDir）"
         $dotnetInstallUrl = "https://dot.net/v1/dotnet-install.ps1"
-        $dotnetInstallScript = Join-Path $env:TEMP "dotnet-install.ps1"
+        $dotnetInstallScript = Join-Path ([IO.Path]::GetTempPath()) "dotnet-install.ps1"
 
         Write-Step "下载 dotnet-install.ps1：$dotnetInstallUrl"
         if ($PSVersionTable.PSEdition -ne "Core") {
@@ -91,16 +224,14 @@ try {
     Write-Step "dotnet --info（用于确认环境）"
     dotnet --info | Out-Host
 
-    # 2) 安装浏览器（如已存在则跳过），使用本地 playwright.ps1 脚本
-    $msPwDir = Join-Path $env:LocalAppData 'ms-playwright'
+    # 2) 安装浏览器（如已存在且版本满足则跳过），使用本地 playwright.ps1 脚本
+    $msPwDir = Get-DefaultPlaywrightBrowsersPath
     $browserNames = $PlaywrightBrowsers -split '\s+' | Where-Object { $_ -and $_.Trim().Length -gt 0 }
     $needInstall = $false
     foreach ($b in $browserNames) {
-        $exists = $false
-        if (Test-Path -LiteralPath $msPwDir) {
-            $exists = @(Get-ChildItem -Path $msPwDir -Directory | Where-Object { $_.Name -like ("$b*") }).Count -gt 0
-        }
-        if ($exists) {
+        if ($b -eq 'chromium' -and (Test-UsableChromium $MinimumChromiumMajorVersion)) {
+            Write-Ok "检测到主版本 >= $MinimumChromiumMajorVersion 的 Chromium/Chrome，跳过安装"
+        } elseif ($b -ne 'chromium' -and (Test-Path -LiteralPath $msPwDir) -and @(Get-ChildItem -Path $msPwDir -Directory | Where-Object { $_.Name -like ("$b*") }).Count -gt 0) {
             Write-Ok "检测到已安装浏览器：$b，跳过安装"
         } else {
             $needInstall = $true
@@ -113,9 +244,9 @@ try {
         if ([string]::IsNullOrWhiteSpace($resolvedPlaywright)) {
             $candidates = @(
                 (Join-Path $PSScriptRoot 'playwright.ps1'),
-                (Join-Path $PSScriptRoot 'XiaoheiheMcpServer\bin\Debug\net10.0\playwright.ps1'),
-                (Join-Path $PSScriptRoot 'XiaoheiheMcpServer\bin\Release\net10.0\playwright.ps1'),
-                (Join-Path $PSScriptRoot 'XiaoheiheMcpServer\bin\Release\net10.0\publish\playwright.ps1')
+                (Join-Path (Join-Path (Join-Path (Join-Path (Join-Path $PSScriptRoot 'XiaoheiheMcpServer') 'bin') 'Debug') 'net10.0') 'playwright.ps1'),
+                (Join-Path (Join-Path (Join-Path (Join-Path (Join-Path $PSScriptRoot 'XiaoheiheMcpServer') 'bin') 'Release') 'net10.0') 'playwright.ps1'),
+                (Join-Path (Join-Path (Join-Path (Join-Path (Join-Path (Join-Path $PSScriptRoot 'XiaoheiheMcpServer') 'bin') 'Release') 'net10.0') 'publish') 'playwright.ps1')
             )
             foreach ($p in $candidates) {
                 if (Test-Path -LiteralPath $p) { $resolvedPlaywright = $p; break }

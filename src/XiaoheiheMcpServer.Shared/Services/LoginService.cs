@@ -188,7 +188,7 @@ public class LoginService : BrowserBase
             
             // 启动后台任务监听登录状态，登录成功后自动保存 Cookie 并取消任务
             //_ = Task.Run(async () => await MonitorAndSaveLoginAsync(_loginMonitorCts.Token));
-            System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(qrPath) { UseShellExecute = true });
+            OpenImage(qrPath);
             await _page.WaitForURLAsync(new Regex(@".*\.?xiaoheihe\.cn/home$"), 
                     new() { Timeout = 120 * 1000 }
                 );
@@ -271,5 +271,16 @@ public class LoginService : BrowserBase
             _loginMonitorCts?.Dispose();
             _loginMonitorCts = null;
         }
+    }
+
+    private static void OpenImage(string imagePath)
+    {
+        var startInfo = OperatingSystem.IsMacOS()
+            ? new System.Diagnostics.ProcessStartInfo("open", imagePath)
+            : OperatingSystem.IsWindows()
+                ? new System.Diagnostics.ProcessStartInfo(imagePath) { UseShellExecute = true }
+                : new System.Diagnostics.ProcessStartInfo("xdg-open", imagePath);
+
+        System.Diagnostics.Process.Start(startInfo);
     }
 }
