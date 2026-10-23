@@ -108,67 +108,97 @@ public class ArticlePublishService : BrowserBase
                     // 遍历分段内容：交替输入文本和插入图片
                     foreach (var (text, imagePath) in contentSegments)
                     {
-                        // 若有文本，先输入文本
+                        // 若有文本，先输入文本（不再重复点击容器——重复点击会把光标移到段落中部，导致文字插错位置）
                         if (!string.IsNullOrEmpty(text))
                         {
-                            await contentEl.ClickAsync();
-                            await Task.Delay(100);
                             await _page.Keyboard.TypeAsync(text);
                             await Task.Delay(200);
                             _logger.LogInformation("[Article] 已填写正文文本段落");
                         }
 
-                        // 若有图片路径，插入图片
+                        // 若有图片路径，插入图片（校验成功后才继续；失败重试一次，仍失败则抛错，避免静默丢图）
                         if (!string.IsNullOrEmpty(imagePath))
                         {
-                            await contentEl.ClickAsync(); // 确保聚焦以展示按钮
-                            await Task.Delay(200);
+                            var beforeImgs = await contentEl.EvaluateAsync<int>("el => el.querySelectorAll('img').length");
+                            var inserted = false;
 
-                            var imgBtn = await _page.QuerySelectorAsync("button.editor-menu-image__btn, .editor-menu-image__btn");
-                            if (imgBtn != null && await imgBtn.IsVisibleAsync())
+                            for (var attempt = 1; attempt <= 2 && !inserted; attempt++)
                             {
-                                await imgBtn.ClickAsync();
-                                await Task.Delay(500);
-
-                                // 查找上传框：.hb-cpt__input-box 内的 input.hb-cpt__input-item
-                                var uploadInput = await _page.QuerySelectorAsync(".hb-cpt__input-box input.hb-cpt__input-item");
-                                // 同时查找本地上传按钮：.editor-image-wrapper__box.upload
-                                var uploadBtn = await _page.QuerySelectorAsync(".editor-image-wrapper__box.upload");
-                                // 确认按钮
-                                var confirmBtn = await _page.QuerySelectorAsync("button.editor-__model-frame-bottom-btn.hb-color__btn--confirm");
-
-                                if (uploadBtn != null && await uploadBtn.IsVisibleAsync())
+                                try
                                 {
-                                    // 本地文件路径：点击上传按钮打开文件选择器
+                                    // 工具栏按钮在编辑器失焦后会隐藏：仅在不可见时补一次点击
+                                    var imgBtn = await _page.QuerySelectorAsync("button.editor-menu-image__btn, .editor-menu-image__btn");
+                                    if (imgBtn == null || !await imgBtn.IsVisibleAsync())
+                                    {
+                                        await contentEl.ClickAsync();
+                                        await Task.Delay(200);
+                                        imgBtn = await _page.QuerySelectorAsync("button.editor-menu-image__btn, .editor-menu-image__btn");
+                                    }
+                                    if (imgBtn == null || !await imgBtn.IsVisibleAsync())
+                                    {
+                                        _logger.LogWarning("[Article] 未找到图片按钮 .editor-menu-image__btn");
+                                        continue;
+                                    }
+
+                                    await imgBtn.ClickAsync();
+                                    await Task.Delay(600);
+
+                                    var uploadBtn = await _page.QuerySelectorAsync(".editor-image-wrapper__box.upload");
+                                    if (uploadBtn == null || !await uploadBtn.IsVisibleAsync())
+                                    {
+                                        _logger.LogWarning("[Article] 未找到上传框或上传按钮");
+                                        continue;
+                                    }
+
                                     var chooser = await _page.RunAndWaitForFileChooserAsync(async () =>
                                     {
                                         await uploadBtn.ClickAsync();
                                     });
-
-                                    if (chooser != null && confirmBtn != null)
-                                    {
-                                        await chooser.SetFilesAsync(imagePath);
-                                        await Task.Delay(2000);
-                                        
-                                        await confirmBtn.ClickAsync();
-                                        await Task.Delay(1000);
-                                        
-                                        _logger.LogInformation($"[Article] 已插入图片(本地): {imagePath}");
-                                    }
-                                    else
+                                    if (chooser == null)
                                     {
                                         _logger.LogWarning($"[Article] 未能打开文件选择器，图片: {imagePath}");
+                                        continue;
                                     }
+
+                                    await chooser.SetFilesAsync(imagePath);
+
+                                    // 确认按钮在上传完成前可能不存在或不可用：等它出现且可点击
+                                    var confirmBtn = await _page.WaitForSelectorAsync(
+                                        "button.editor-__model-frame-bottom-btn.hb-color__btn--confirm",
+                                        new() { Timeout = 30000 });
+                                    if (confirmBtn == null)
+                                    {
+                                        _logger.LogWarning($"[Article] 未等到确认按钮，图片: {imagePath}");
+                                        continue;
+                                    }
+                                    for (var w = 0; w < 30; w++)
+                                    {
+                                        if (await confirmBtn.IsEnabledAsync()) break;
+                                        await Task.Delay(500);
+                                    }
+                                    await confirmBtn.ClickAsync();
+                                    await Task.Delay(1200);
+
+                                    // 校验图片真的进了正文
+                                    for (var w = 0; w < 20; w++)
+                                    {
+                                        var nowImgs = await contentEl.EvaluateAsync<int>("el => el.querySelectorAll('img').length");
+                                        if (nowImgs > beforeImgs) { inserted = true; break; }
+                                        await Task.Delay(500);
+                                    }
+                                    if (inserted)
+                                        _logger.LogInformation($"[Article] 已插入图片(本地): {imagePath}");
+                                    else
+                                        _logger.LogWarning($"[Article] 图片未出现在正文(第{attempt}次): {imagePath}");
                                 }
-                                else
+                                catch (Exception ex)
                                 {
-                                    _logger.LogWarning("[Article] 未找到上传框或上传按钮");
+                                    _logger.LogWarning($"[Article] 插图异常(第{attempt}次): {imagePath} - {ex.Message}");
                                 }
                             }
-                            else
-                            {
-                                _logger.LogWarning("[Article] 未找到图片按钮 .editor-menu-image__btn");
-                            }
+
+                            if (!inserted)
+                                throw new InvalidOperationException($"[Article] 图片插入失败，已中止发布以避免无图帖子: {imagePath}");
                         }
                     }
 

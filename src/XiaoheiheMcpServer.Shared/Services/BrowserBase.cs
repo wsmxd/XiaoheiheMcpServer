@@ -29,7 +29,10 @@ public abstract class BrowserBase : IAsyncDisposable
     {
         _logger = logger;
         _headlessMode = headless;
-        _cookiesPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "data", "cookies.json");
+        // 多账号支持：优先使用 XIAOHEIHE_COOKIE_PATH 指定的 cookie 路径，
+        // 未设置时回退到 <DLL目录>/data/cookies.json（历史行为不变）
+        _cookiesPath = Environment.GetEnvironmentVariable("XIAOHEIHE_COOKIE_PATH")
+            ?? Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "data", "cookies.json");
         Directory.CreateDirectory(Path.GetDirectoryName(_cookiesPath)!);
     }
 

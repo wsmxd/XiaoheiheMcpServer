@@ -20,9 +20,9 @@ builder.Logging.SetMinimumLevel(LogLevel.Warning);
 // 解析命令行参数 - 是否使用无头模式
 var headless = !args.Contains("--no-headless");
 
-// 检查是否首次使用（是否存在 Cookie 文件）
-var dataDir = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "data");
-var cookiePath = Path.Combine(dataDir, "cookies.json");
+// 检查是否首次使用（是否存在 Cookie 文件；与 BrowserBase 的路径逻辑保持一致）
+var cookiePath = Environment.GetEnvironmentVariable("XIAOHEIHE_COOKIE_PATH")
+    ?? Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "data", "cookies.json");
 var isFirstTime = !File.Exists(cookiePath);
 
 // 首次使用时强制使用有头模式
